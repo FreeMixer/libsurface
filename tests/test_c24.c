@@ -110,6 +110,32 @@ T(setpoint_untouched_report_self_writes)
 	CHK(raw_writes(0, w, 8) == 1 && w[0] == 500);
 }
 
+T(setpoint_older_echo_after_release)
+{
+	/* #4 on the Control|24: the final echo overtakes the gesture's older ones and the clock runs
+	 * past the implicit-touch window. The set-point echo and the release carry the hand's
+	 * position; the older echoes never become the target, so nothing drives the cap off it. */
+	c24_start();
+	F.manner = HOST_LAG;
+	touch(0, 1);
+	for (uint16_t r = 100; r <= 300; r += 100) {   /* a hand's move, 10 ms apart */
+		bend_raw(0, r);
+		F.now += 10 * MS;
+	}
+	clear_ops();
+	touch(0, 0);
+	advance(SURFACE_C24_RELEASE_DEBOUNCE_MS);
+	unsigned w[8];
+	CHK(raw_writes(0, w, 8) == 1 && w[0] == 300);
+	clear_ops();
+	static const int final_first[] = { 2, 0, 1 };
+	host_deliver(final_first, 3);
+	advance(SURFACE_IMPLICIT_TOUCH_MS + 400);
+	int n = raw_writes(0, w, 8);
+	for (int i = 0; i < n && i < 8; i++)
+		CHK(w[i] == 300);
+}
+
 /* ---- the board shadow and replay (R15: a new session blanks the desk) ------------------- */
 
 static int count_kind(char kind)
@@ -189,6 +215,7 @@ int main(void)
 	RUN(setpoint_echoes_touched_reports);
 	RUN(setpoint_release_echo_and_no_snap);
 	RUN(setpoint_untouched_report_self_writes);
+	RUN(setpoint_older_echo_after_release);
 	RUN(replay_on_every_online);
 	RUN(replay_resets_touch);
 	RUN(scribble_fits_display);

@@ -518,6 +518,88 @@ T(reports_c24_twin)
 	CHK(F.moves == 1);
 }
 
+/* ---- "an echo older than the hand's last move never becomes the target" (#4) ----------------
+ * Each echo carries its send time (surface_fader_served_at): when the host committed it. One
+ * sent before the hand's last move is older than where the hand left the cap, whenever and in
+ * whatever order it arrives. Every case runs the clock past the implicit-touch window, where a
+ * withheld stale target would be driven. */
+
+#define STALE_PAST_WINDOW (SURFACE_IMPLICIT_TOUCH_MS + 400)
+
+/* A touched sweep of strip 0 (target 1) 0.2 -> 0.4 -> 0.6, 10 ms apart, then the release; the
+ * host lags, so every echo is held. Returns the op index at the release. */
+static int lagging_sweep(uint64_t *first_move_at)
+{
+	xtouch_start();
+	F.manner = HOST_LAG;
+	touch(0, 1);
+	*first_move_at = F.now;
+	bend(0, 0.2);
+	F.now += 10 * MS;
+	bend(0, 0.4);
+	F.now += 10 * MS;
+	bend(0, 0.6);
+	touch(0, 0);
+	CHK(F.nheld == 3);
+	return F.nops;
+}
+
+/* Every write to strip 0 from op `from` on is at pos. */
+static int writes_all_at(int from, double pos)
+{
+	int ok = 1;
+	for (int i = from; i < F.nops; i++)
+		if (F.ops[i].kind == 'f' && F.ops[i].strip == 0)
+			ok &= NEAR((double)F.ops[i].value / F.g.fader_max, pos, 1e-3);
+	return ok;
+}
+
+T(older_echo_after_release_never_moves_cap)
+{
+	uint64_t t0;
+	int at_off = lagging_sweep(&t0);
+	F.now += 30 * MS;
+	static const int final_first[] = { 2, 0, 1 };   /* the final echo overtakes the stale two */
+	host_deliver(final_first, 3);
+	advance(STALE_PAST_WINDOW);
+	CHK(writes_all_at(at_off, 0.6));
+	/* and an older echo arriving long after the window closed: dropped, no write at all */
+	clear_ops();
+	surface_fader_served_at(F.s, 1, 0.2, t0, F.now);
+	advance(STALE_PAST_WINDOW);
+	CHK(nwrites(0) == 0);
+	/* the target is still where the hand left the cap: a bare grab and release re-commands
+	 * nothing but that */
+	touch(0, 1);
+	touch(0, 0);
+	CHK(writes_all_at(0, 0.6));
+}
+
+T(newer_external_move_still_drives)
+{
+	uint64_t t0;
+	lagging_sweep(&t0);
+	host_deliver(NULL, 0);   /* the gesture confirmed, in order */
+	/* a remote client moves it AFTER the hand's last move, inside the window: withheld, then
+	 * driven when the window lapses */
+	F.now += 50 * MS;
+	clear_ops();
+	surface_fader_served_at(F.s, 1, 0.25, F.now, F.now);
+	CHK(nwrites(0) == 0);
+	advance(STALE_PAST_WINDOW);
+	CHK(nwrites(0) == 1);
+	CHK(NEAR(last_write(0), 0.25, 0.005));
+	/* past the window, a newer move drives the untouched cap at once, by send time and by
+	 * arrival (a host that gives no send time) alike */
+	surface_fader_served_at(F.s, 1, 0.35, F.now, F.now);
+	CHK(nwrites(0) == 2);
+	CHK(NEAR(last_write(0), 0.35, 0.005));
+	F.now += 200 * MS;
+	serve(1, 0.45);
+	CHK(nwrites(0) == 3);
+	CHK(NEAR(last_write(0), 0.45, 0.005));
+}
+
 int main(void)
 {
 	RUN(policy_a_one_write_on_release);
@@ -552,5 +634,7 @@ int main(void)
 	RUN(reports_hand_at_commanded_is_gesture);
 	RUN(reports_hand_free_move_is_gesture);
 	RUN(reports_c24_twin);
+	RUN(older_echo_after_release_never_moves_cap);
+	RUN(newer_external_move_still_drives);
 	return finish("test_motor");
 }
