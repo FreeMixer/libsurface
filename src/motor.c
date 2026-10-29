@@ -152,23 +152,34 @@ void motor_moved(struct surface *s, struct fader_state *f, double pos, uint64_t 
 {
 	f->awaiting = pos;
 	f->has_awaiting = 1;
+	f->hand_set = 1;
+	f->hand_at = now_us;
 	if (fabs(pos - f->motor_at) > motor_epsilon(s)) {
 		f->implicit_set = 1;
 		f->implicit_until = now_us + SURFACE_IMPLICIT_TOUCH_MS * MS_US;
 	}
 }
 
-/* The one motor rule (a served frame -> motor). The frame becomes the target; an echo of the
- * surface's own move resolves awaiting and stops (checked BEFORE the handled gate so awaiting
- * always resolves; a stale guard outliving an implicit window would swallow the next genuine
- * change); a handled fader holds the target for the trailing flush; otherwise the leading frame
- * drives at once and a burst coalesces onto one trailing drive of the latest target. */
-void surface_fader_served(struct surface *s, surface_target t, double pos, uint64_t now_us)
+/* The one motor rule (a served frame -> motor). A frame sent before the hand's last move is
+ * dropped whole: it is an older echo of the gesture (or a change the hand has since overridden),
+ * and an older echo never becomes the target. Without this, an echo the host reordered behind
+ * the final one landed inside the implicit-touch window as the target, and when the window
+ * lapsed the trailing flush drove the cap off where the hand left it (#4). It cannot be the
+ * confirmation awaiting waits for either: that one was sent at or after the move it confirms.
+ * Otherwise the frame becomes the target; an echo of the surface's own move resolves awaiting
+ * and stops (checked BEFORE the handled gate so awaiting always resolves; a stale guard
+ * outliving an implicit window would swallow the next genuine change); a handled fader holds
+ * the target for the trailing flush; otherwise the leading frame drives at once and a burst
+ * coalesces onto one trailing drive of the latest target. */
+void surface_fader_served_at(struct surface *s, surface_target t, double pos, uint64_t sent_us,
+			     uint64_t now_us)
 {
 	if (!s)
 		return;
 	struct fader_state *f = motor_state(s, t);
 	if (!f)
+		return;
+	if (f->hand_set && sent_us < f->hand_at)
 		return;
 	f->target = pos;
 	if (f->suspended)
@@ -190,6 +201,12 @@ void surface_fader_served(struct surface *s, surface_target t, double pos, uint6
 		return;
 	}
 	motor_arm_flush(f, now_us);
+}
+
+/* A host that gives no send time is ordered by arrival. */
+void surface_fader_served(struct surface *s, surface_target t, double pos, uint64_t now_us)
+{
+	surface_fader_served_at(s, t, pos, now_us, now_us);
 }
 
 /* A touch release: drive the cap once to where the hand left it while that move is

@@ -257,8 +257,15 @@ void surface_master_set(struct surface *s, surface_target t);  /* what the maste
 
 /* ---- Fader writes (host -> device), through the motor policy ------------------------------- */
 
-/* A served value (the host's truth) for t, 0..1. The one motor rule. */
+/* A served value (the host's truth) for t, 0..1. The one motor rule. A served frame older than
+ * the hand's last move of t never becomes its target (never fight the hand), and "older" is read
+ * from the frame's send time: sent_us, on the caller's clock, is when the host committed the
+ * value (for the echo of a surface move, the time that move reached it). surface_fader_served()
+ * is surface_fader_served_at() with sent_us = now_us: a host that gives no send time is ordered
+ * by arrival, which cannot see an echo the host reordered behind a newer one. */
 void surface_fader_served(struct surface *s, surface_target t, double pos, uint64_t now_us);
+void surface_fader_served_at(struct surface *s, surface_target t, double pos, uint64_t sent_us,
+			     uint64_t now_us);
 /* The host refused the surface's own move of t: the echo it awaited never comes. */
 void surface_fader_refused(struct surface *s, surface_target t);
 /* A repaint of t at pos (bank move, page change): held inside an implicit-touch window,
