@@ -1,0 +1,29 @@
+Source: libsurface
+Section: libs
+Priority: optional
+Maintainer: Pau Aliagas <linuxnow@gmail.com>
+Build-Depends: debhelper-compat (= 13), git, pkgconf
+Standards-Version: 4.6.2
+Homepage: https://github.com/FreeMixer/libsurface
+Rules-Requires-Root: no
+
+Package: libsurface0
+Architecture: any
+Multi-Arch: same
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: device behaviour of motorised control surfaces
+ libsurface is the device behaviour of a motorised control surface, written
+ once for every surface and every host: a motor-fader policy that never fights
+ the hand, touch with a self-heal and a release debounce, the bank window, a
+ shadow of the whole board replayed when a device comes back blank, meter steps
+ with hysteresis and LED ring rendering. It speaks no wire and knows no mixing
+ semantics.
+
+Package: libsurface-dev
+Section: libdevel
+Architecture: any
+Multi-Arch: same
+Depends: libsurface0 (= ${binary:Version}), ${misc:Depends}
+Description: device behaviour of motorised control surfaces, development files
+ The header and the pkg-config file libsurface, for building a control-surface
+ host or backend on libsurface.

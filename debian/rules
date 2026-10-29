@@ -1,0 +1,24 @@
+#!/usr/bin/make -f
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+include /usr/share/dpkg/buildflags.mk
+
+MULTIARCH = $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+
+# The soname's major is SURFACE_ABI of include/surface/surface.h; the package name libsurface0
+# carries it, and tests/conformance-packaging.sh holds the two to each other.
+%:
+	dh $@
+
+override_dh_auto_build:
+	$(MAKE) CFLAGS="$(CFLAGS) $(CPPFLAGS)" LDFLAGS="$(LDFLAGS)" shared
+
+override_dh_auto_install:
+	$(MAKE) CFLAGS="$(CFLAGS) $(CPPFLAGS)" LDFLAGS="$(LDFLAGS)" install-shared \
+	  DESTDIR=$(CURDIR)/debian/tmp PREFIX=/usr LIBDIR=/usr/lib/$(MULTIARCH)
+
+override_dh_auto_test:
+	$(MAKE) CFLAGS="$(CFLAGS) $(CPPFLAGS)" test
+
+override_dh_auto_clean:
+	$(MAKE) clean
