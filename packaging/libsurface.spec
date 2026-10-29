@@ -1,12 +1,19 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # libsurface, the device behaviour of motorised control surfaces: the motor-fader policy, touch,
-# the bank window, the board shadow and its replay, meter steps and ring rendering.
+# the bank window, the board shadow and its replay, meter steps and ring rendering; and its
+# DigiNet module, libsurface-diginet (a Control|24 over libdiginet), with surface-c24.
+#
+# rpmbuild --without diginet builds the core alone.
+%bcond_without diginet
 Name:           libsurface
 Version:        0.1.0
 # The soname's major. rpm derives this package's provides and every consumer's requires from it.
 # It copies SURFACE_ABI of include/surface/surface.h, and tests/conformance-packaging.sh (in make
 # test) refuses a copy that disagrees.
 %global abi 0
+# The DigiNet module's soname major: SURFACE_DIGINET_ABI of include/surface/surface_diginet.h, held
+# to this copy by the same check.
+%global dabi 0
 Release:        1%{?dist}
 Summary:        Motor faders, touch and banks for any motorised control surface
 
@@ -18,6 +25,10 @@ BuildRequires:  gcc
 BuildRequires:  make
 BuildRequires:  git-core
 BuildRequires:  pkgconf-pkg-config
+%if %{with diginet}
+# the desk mux (diginet/transport/diginet_mux.h) is in libdiginet from 0.1.2
+BuildRequires:  pkgconfig(libdiginet-transport) >= 0.1.2
+%endif
 
 %description
 libsurface is the device behaviour of a motorised control surface, written once in C for every
@@ -34,18 +45,57 @@ Requires:       %{name}%{?_isa} = %{version}-%{release}
 The header and the pkg-config file (libsurface) for building a control-surface host or backend
 on libsurface.
 
+%if %{with diginet}
+%package -n libsurface-diginet
+Summary:        A Digidesign Control|24 under libsurface, over DigiNet
+Requires:       %{name}%{?_isa} = %{version}-%{release}
+# the soname alone does not say it: the desk mux is in libdiginet from 0.1.2
+Requires:       libdiginet%{?_isa} >= 0.1.2
+
+%description -n libsurface-diginet
+libsurface-diginet is libsurface's DigiNet module: a Digidesign Control|24 driven by libsurface's
+device behaviour over libdiginet's desk mux. One listener hears every interface and every desk;
+each desk the host attaches is a libsurface surface whose board is replayed on every new
+session, with its faders, keys, V-Pots, jog, LEDs, rings, meters, scribbles and counter mapped
+to and from the wire, and a deaf desk or one owned by another host raised as a warning.
+
+%package -n libsurface-diginet-devel
+Summary:        Development files for libsurface-diginet
+Requires:       libsurface-diginet%{?_isa} = %{version}-%{release}
+Requires:       %{name}-devel%{?_isa} = %{version}-%{release}
+
+%description -n libsurface-diginet-devel
+The header and the pkg-config file (libsurface-diginet) for building a host that drives a
+Control|24 through libsurface.
+
+%package -n surface-c24
+Summary:        Drive a Control|24 through libsurface, with no privilege of its own
+Requires:       libsurface-diginet%{?_isa} = %{version}-%{release}
+# the packet socket comes from diginet-packet-helper
+Requires:       diginet-tools
+
+%description -n surface-c24
+surface-c24 takes its packet socket from diginet-packet-helper, attaches the first Control|24
+that announces on any interface, labels its strips, mirrors each fader on its meter, prints
+every event, and takes writes (scribbles, LEDs, fader targets, rings) from a FIFO.
+%endif
+
 %prep
 %autosetup -n %{name}-%{version}
 
 %build
-%make_build CFLAGS="%{optflags}" LDFLAGS="%{build_ldflags}" shared
+# DIGINET=yes: the module or a failed build, never a silent skip; DIGINET=no: the core alone.
+# SURFACE_C24_HELPER empty: surface-c24 finds diginet-packet-helper in PATH.
+%global mkflags DIGINET=%{?with_diginet:yes}%{!?with_diginet:no} SURFACE_C24_HELPER=
+%make_build CFLAGS="%{optflags}" LDFLAGS="%{build_ldflags}" %{mkflags} shared
 
 %install
-# not %%make_install: it names the `install` target (the static archive) as well
-make DESTDIR=%{buildroot} PREFIX=%{_prefix} LIBDIR=%{_libdir} INCDIR=%{_includedir} install-shared
+# not %%make_install: it names the `install` target (the static archives) as well
+make DESTDIR=%{buildroot} PREFIX=%{_prefix} LIBDIR=%{_libdir} INCDIR=%{_includedir} \
+    BINDIR=%{_bindir} %{mkflags} install-shared
 
 %check
-make CFLAGS="%{optflags}" test
+make CFLAGS="%{optflags}" %{mkflags} test
 
 %files
 %license LICENSE
@@ -56,9 +106,25 @@ make CFLAGS="%{optflags}" test
 %files devel
 %doc BUILDING.md
 %dir %{_includedir}/surface
-%{_includedir}/surface/*.h
+%{_includedir}/surface/surface.h
 %{_libdir}/libsurface.so
 %{_libdir}/pkgconfig/libsurface.pc
+
+%if %{with diginet}
+%files -n libsurface-diginet
+%license LICENSE
+%{_libdir}/libsurface-diginet.so.%{version}
+%{_libdir}/libsurface-diginet.so.%{dabi}
+
+%files -n libsurface-diginet-devel
+%{_includedir}/surface/surface_diginet.h
+%{_libdir}/libsurface-diginet.so
+%{_libdir}/pkgconfig/libsurface-diginet.pc
+
+%files -n surface-c24
+%license LICENSE
+%{_bindir}/surface-c24
+%endif
 
 %changelog
 * Thu Oct 29 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.0-1
@@ -69,3 +135,7 @@ make CFLAGS="%{optflags}" test
   board shadow and its replay, meter steps, ring rendering, and the
   Control|24's release debounce and set-point echo. Caller time, no
   threads.
+- The DigiNet module, libsurface-diginet: a Control|24 under libsurface
+  over libdiginet's desk mux, one surface per attached desk, the board
+  replayed on every session, DESK_DEAF and FOREIGN as warnings; and
+  surface-c24, which drives a desk with no privilege of its own.

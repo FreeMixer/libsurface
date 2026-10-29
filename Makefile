@@ -61,10 +61,23 @@ DIGINET_CFLAGS := $(shell pkg-config --cflags libdiginet-transport 2>/dev/null)
 DIGINET_LIBS   := $(shell pkg-config --libs libdiginet-transport 2>/dev/null)
 DIGINET_HELPER ?= $(shell command -v diginet-packet-helper 2>/dev/null)
 endif
+# DIGINET=auto (the default) builds the module when libdiginet is found; DIGINET=yes stops the
+# build when it is not (the packages); DIGINET=no never builds it.
+DIGINET ?= auto
+ifneq ($(DIGINET),no)
 HAVE_DIGINET := $(shell printf '\043include <diginet/transport/diginet_mux.h>\n' | \
 	$(CC) $(DIGINET_CFLAGS) -E -x c - >/dev/null 2>&1 && echo yes)
+endif
 DIGINET_NONE := libdiginet with the desk mux (diginet/transport/diginet_mux.h) was not found: \
 	install libdiginet 0.1.2 or later, or set DIGINET_SRC to a built libdiginet tree
+ifeq ($(DIGINET),no)
+DIGINET_NONE := DIGINET=no
+endif
+ifeq ($(DIGINET),yes)
+ifneq ($(HAVE_DIGINET),yes)
+$(error $(DIGINET_NONE))
+endif
+endif
 
 DOBJS := src/diginet/surface_diginet.o
 DABI  := $(shell sed -n 's/^\#define SURFACE_DIGINET_ABI  *\([0-9]*\)$$/\1/p' include/surface/surface_diginet.h)

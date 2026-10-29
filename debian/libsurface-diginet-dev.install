@@ -1,0 +1,3 @@
+usr/include/surface/surface_diginet.h
+usr/lib/*/libsurface-diginet.so
+usr/lib/*/pkgconfig/libsurface-diginet.pc
