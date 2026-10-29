@@ -4,7 +4,7 @@
  * libsurface: the device behaviour of a motorised control surface, written once for every
  * surface and every host. The motor-fader policy (never fight the hand), touch with its
  * self-heal and release debounce, the bank window, the board shadow and its replay, the meter
- * step, ring rendering, the health lists of faders that cannot be trusted and the jump filter.
+ * step and ring rendering. Every fader is treated the same.
  *
  * What it is not: it speaks no wire (a backend encodes, through struct surface_backend_ops),
  * and it knows no mixing semantics. A host names what a strip shows by an opaque
@@ -117,18 +117,6 @@ extern "C" {
  */
 #define SURFACE_METER_STEP_HYSTERESIS 0.25
 
-/*
- * Quarantine of a fader whose sensor jumps (R16: an old Control|24's sensor jumped 13 -> 1023
- * within 30 ms and its motor hunted). This many dropped impossible jumps on one strip within
- * SURFACE_QUARANTINE_WINDOW_MS put it on do-not-read and do-not-drive until the host clears
- * it. K = 3 is the design's first value, to tune on the desk.
- */
-#define SURFACE_QUARANTINE_JUMPS     3
-#define SURFACE_QUARANTINE_WINDOW_MS 10000
-
-/* A held-back jump is confirmed when the next report lands within this many raw units of it. */
-#define SURFACE_JUMP_CONFIRM_Q 2
-
 /* ---- Sizes --------------------------------------------------------------------------------- */
 
 #define SURFACE_MAX_STRIPS         32  /* fader strips; a master fader is one more */
@@ -165,8 +153,6 @@ struct surface_geometry {
 	uint32_t touch_release_debounce_ms; /* 0 X-Touch, SURFACE_C24_RELEASE_DEBOUNCE_MS Control|24 */
 	uint8_t  reports_motor_moves;  /* the device reports where its motor put a cap (X-Touch) */
 	uint8_t  holds_setpoint;       /* the motor holds its own set-point: echo the hand (C24) */
-	uint16_t max_slew;             /* jump filter, raw units per ms; 0 = off */
-	uint8_t  quarantine_jumps;     /* dropped jumps that quarantine a strip; 0 = never */
 };
 
 /* The geometries this library knows. */
@@ -199,13 +185,12 @@ enum surface_event_kind {
 	SURFACE_EV_KEY,             /* key, on = pressed */
 	SURFACE_EV_VPOT,            /* strip, target, delta */
 	SURFACE_EV_JOG,             /* delta */
-	SURFACE_EV_WARNING,         /* code + text (+ strip for a fader warning) */
+	SURFACE_EV_WARNING,         /* code + text */
 };
 
 enum surface_warning {
 	SURFACE_WARN_DESK_DEAF = 1,     /* raised by a backend (libdiginet#29 section 3.3) */
 	SURFACE_WARN_FOREIGN,           /* raised by a backend: another host owns the device */
-	SURFACE_WARN_FADER_QUARANTINED, /* strip: on do-not-read and do-not-drive until cleared */
 };
 
 struct surface_event {
@@ -282,7 +267,7 @@ void surface_fader_paint(struct surface *s, surface_target t, double pos, uint64
 /* While on, served frames for t only move its target (the caps show something else, a send
  * layer); the host writes those caps with surface_strip_fader(). */
 void surface_fader_suspend(struct surface *s, surface_target t, int on);
-/* A cap written outside the policy (a layer, a flip); skipped under a hand or on no-drive. */
+/* A cap written outside the policy (a layer, a flip); skipped under a hand. */
 int  surface_strip_fader(struct surface *s, unsigned strip, double pos, uint64_t now_us);
 
 /* ---- Element writes (host -> device): latest wins, kept in the board shadow ------------- */
@@ -293,11 +278,6 @@ int surface_scribble(struct surface *s, unsigned strip, unsigned row, const char
 int surface_counter(struct surface *s, const char *text);
 int surface_colour(struct surface *s, const uint8_t *per_strip, size_t n);
 int surface_blank_strip(struct surface *s, unsigned strip);
-
-/* ---- Device health (libdiginet#29 section 5.5) -------------------------------------------- */
-void surface_fader_no_drive(struct surface *s, unsigned strip, int on);
-void surface_fader_no_read(struct surface *s, unsigned strip, int on);
-int  surface_fader_health(const struct surface *s, unsigned strip); /* bit 0 no-drive, bit 1 no-read */
 
 /* ---- Inputs (backend -> libsurface) ----------------------------------------------------- */
 void surface_in_fader(struct surface *s, unsigned strip, uint16_t raw, uint64_t now_us);

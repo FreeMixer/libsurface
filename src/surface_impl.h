@@ -70,12 +70,6 @@ struct strip_state {
 	uint8_t have_report;      /* last_raw/last_at hold the last accepted report */
 	uint16_t last_raw;
 	uint64_t last_at;
-	uint8_t accept_next;      /* the first report after a touch-on passes the jump filter */
-	uint8_t jump_held;        /* a report held back as an impossible jump */
-	uint16_t jump_raw;
-	uint64_t drops[8];        /* when the last dropped jumps were, newest at ndrops-1 */
-	uint8_t ndrops;
-	uint8_t no_drive, no_read;
 	/* where the cap was last commanded, read off our own writes */
 	uint8_t commanded_set;
 	uint16_t commanded;

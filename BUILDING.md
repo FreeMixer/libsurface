@@ -38,8 +38,8 @@ or refusing), and a virtual clock that runs the surface's timers in order:
 - `test_bank`: the bank window;
 - `test_meter`: meter ballistics, ring rendering, and the step law against
   `tests/golden/meter-steps.txt`, vectors generated once from the TypeScript law and fixed;
-- `test_c24`: the Control|24's rules: release debounce, set-point echo, do-not-drive,
-  do-not-read, the jump filter, the quarantine, the replay on every session.
+- `test_c24`: the Control|24's rules: release debounce, set-point echo, the replay on every
+  session.
 
 The script checks: `constants-check.sh` (each timing constant declared once, in the header),
 `conformance-packaging.sh` (the version and soname agree in every packaging copy),

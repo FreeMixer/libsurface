@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 
 /* The surface: creation, the geometries, touch, the inputs from a backend, the board shadow
- * and its replay, the health lists and the timers. The motor policy is motor.c, the bank
+ * and its replay, and the timers. The motor policy is motor.c, the bank
  * window bank.c, the meter step and ring rendering meter.c. */
 #include <stdlib.h>
 #include <string.h>
@@ -53,10 +53,6 @@ int surface_geometry_preset(enum surface_model m, struct surface_geometry *g)
 		g->touch_release_debounce_ms = SURFACE_C24_RELEASE_DEBOUNCE_MS;
 		g->reports_motor_moves = 0;    /* the desk never reports its own moves (R4) */
 		g->holds_setpoint = 1;         /* the motor drives back to its set-point (R4) */
-		/* 13 -> 1023 in 30 ms is ~34 units/ms (R16). A fast hand throw is the bound and is
-		 * not measured yet (Q5); 20 sits between a ~10 units/ms throw and that jump. */
-		g->max_slew = 20;
-		g->quarantine_jumps = SURFACE_QUARANTINE_JUMPS;
 		return SURFACE_OK;
 	}
 	return SURFACE_E_ARG;
@@ -67,8 +63,7 @@ static int geometry_ok(const struct surface_geometry *g)
 	return g->strips && g->strips <= SURFACE_MAX_STRIPS && g->fader_max &&
 		g->meter_sides <= SURFACE_MAX_METER_SIDES && g->ring_leds <= SURFACE_MAX_RING_LEDS &&
 		g->scribble_rows <= SURFACE_MAX_SCRIBBLE_ROWS &&
-		g->scribble_chars <= SURFACE_MAX_SCRIBBLE_CHARS &&
-		g->quarantine_jumps <= 8;
+		g->scribble_chars <= SURFACE_MAX_SCRIBBLE_CHARS;
 }
 
 int surface_create(struct surface **out, const struct surface_config *c)
@@ -159,13 +154,11 @@ static double strip_position(const struct surface *s, const struct strip_state *
  * to it when the cap is let go, and the desk never reports its own moves (R4). So while a hand
  * owns the cap, every reported position is written back as the set-point, and once more at the
  * release (procontrol-linux's fix, docs/protocol.md). This is set-point maintenance, not a
- * motor drive: it is written on a do-not-drive strip too, or the motor, which still pulls down,
- * would snap the cap to its stale set-point on release. It is recorded as the cap's commanded
+ * motor drive. It is recorded as the cap's commanded
  * position, so the policy's release drive finds the cap there and writes nothing. */
 static void setpoint_echo(struct surface *s, unsigned strip, uint16_t raw)
 {
-	struct strip_state *st = &s->strip[strip];
-	if (!s->online || st->no_read)
+	if (!s->online)
 		return;
 	if (s->ops.fader(s->backend, strip, raw) > 0)
 		surface_note_commanded(s, strip, raw);
@@ -207,7 +200,6 @@ void surface_in_touch(struct surface *s, unsigned strip, int on, uint64_t now_us
 		}
 		if (was)
 			return;   /* the sensor repeating itself while held: the deadline is refreshed */
-		st->accept_next = 1;
 		struct surface_event ev = {
 			.kind = SURFACE_EV_FADER_TOUCHED, .strip = (uint8_t)strip, .on = 1,
 			.target = surface_strip_target(s, strip),
@@ -227,95 +219,6 @@ void surface_in_touch(struct surface *s, unsigned strip, int on, uint64_t now_us
 		return;
 	}
 	touch_release(s, strip, now_us);
-}
-
-/* ---- faders that cannot be trusted (libdiginet#29 section 5.5) --------------------------- */
-
-static void jump_dropped(struct surface *s, unsigned strip, uint64_t now_us)
-{
-	struct strip_state *st = &s->strip[strip];
-	unsigned k = s->g.quarantine_jumps;
-	if (!k)
-		return;
-	if (st->ndrops == k) {
-		memmove(st->drops, st->drops + 1, (k - 1) * sizeof st->drops[0]);
-		st->ndrops--;
-	}
-	st->drops[st->ndrops++] = now_us;
-	unsigned recent = 0;
-	for (unsigned i = 0; i < st->ndrops; i++)
-		if (now_us - st->drops[i] < (uint64_t)SURFACE_QUARANTINE_WINDOW_MS * MS_US)
-			recent++;
-	if (recent < k)
-		return;
-	/* Writing to a hunting motor is the danger: the quarantine stops every write to it. */
-	st->no_read = 1;
-	st->no_drive = 1;
-	st->ndrops = 0;
-	struct surface_event ev = {
-		.kind = SURFACE_EV_WARNING, .strip = (uint8_t)strip,
-		.target = surface_strip_target(s, strip), .code = SURFACE_WARN_FADER_QUARANTINED,
-		.text = "fader quarantined: its sensor jumps; on do-not-read and do-not-drive until cleared",
-	};
-	surface_emit(s, &ev);
-}
-
-/* The impossible-jump filter. A report more than max_slew raw units per ms away from the
- * strip's previous report is held back; it is taken only when the next report confirms it
- * within SURFACE_JUMP_CONFIRM_Q, otherwise it is dropped. The first report after a touch-on is
- * always taken. 1 when raw is taken. */
-static int jump_filter(struct surface *s, unsigned strip, uint16_t raw, uint64_t now_us)
-{
-	struct strip_state *st = &s->strip[strip];
-	if (!s->g.max_slew)
-		return 1;
-	if (st->accept_next || !st->have_report) {
-		st->accept_next = 0;
-		st->jump_held = 0;
-		return 1;
-	}
-	if (st->jump_held) {
-		st->jump_held = 0;
-		if (abs((int)raw - (int)st->jump_raw) <= SURFACE_JUMP_CONFIRM_Q)
-			return 1;
-		jump_dropped(s, strip, now_us);
-		if (st->no_read)
-			return 0;
-	}
-	uint64_t dt = now_us - st->last_at;
-	if (dt < MS_US)
-		dt = MS_US;
-	uint64_t d = (uint64_t)abs((int)raw - (int)st->last_raw);
-	if (d * MS_US > (uint64_t)s->g.max_slew * dt) {
-		st->jump_held = 1;
-		st->jump_raw = raw;
-		return 0;
-	}
-	return 1;
-}
-
-void surface_fader_no_drive(struct surface *s, unsigned strip, int on)
-{
-	if (s && strip < surface_nstrips(s))
-		s->strip[strip].no_drive = on ? 1 : 0;
-}
-
-void surface_fader_no_read(struct surface *s, unsigned strip, int on)
-{
-	if (!s || strip >= surface_nstrips(s))
-		return;
-	struct strip_state *st = &s->strip[strip];
-	st->no_read = on ? 1 : 0;
-	st->jump_held = 0;
-	st->ndrops = 0;
-	st->have_report = 0;   /* a stale report is no reference for the next one */
-}
-
-int surface_fader_health(const struct surface *s, unsigned strip)
-{
-	if (!s || strip >= surface_nstrips(s))
-		return SURFACE_E_ARG;
-	return (s->strip[strip].no_drive ? 1 : 0) | (s->strip[strip].no_read ? 2 : 0);
 }
 
 /* ---- inputs ------------------------------------------------------------------------------ */
@@ -351,10 +254,6 @@ void surface_in_fader(struct surface *s, unsigned strip, uint16_t raw, uint64_t 
 	struct strip_state *st = &s->strip[strip];
 	if (raw > s->g.fader_max)
 		raw = s->g.fader_max;
-	if (st->no_read)
-		return;
-	if (!jump_filter(s, strip, raw, now_us))
-		return;
 	int held = touch_held(s, strip, now_us);
 	/* A motor's report of where it put the cap is served state coming back, never a gesture:
 	 * with no hand on the cap, a frame at the commanded position (within the epsilon) is that
@@ -555,8 +454,6 @@ void surface_in_online(struct surface *s, uint64_t now_us)
 		struct strip_state *st = &s->strip[k];
 		st->touch = 0;
 		st->release_pending = 0;
-		st->jump_held = 0;
-		st->accept_next = 1;
 	}
 	meters_reset(s);
 	for (size_t i = 0; i < s->ledcap; i++)

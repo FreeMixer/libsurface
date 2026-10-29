@@ -106,12 +106,12 @@ static void motor_arm_flush(struct fader_state *f, uint64_t now_us)
 	f->flush_at = now_us + SURFACE_MOTOR_COALESCE_MS * MS_US;
 }
 
-/* Write pos on strip's cap: skipped under a hand, on a do-not-drive strip, and while offline.
+/* Write pos on strip's cap: skipped under a hand and while offline.
  * 1 when the backend wrote it. */
 int motor_write_strip(struct surface *s, unsigned strip, double pos, uint64_t now_us)
 {
 	struct strip_state *st = &s->strip[strip];
-	if (!s->online || st->no_drive || touch_held(s, strip, now_us))
+	if (!s->online || touch_held(s, strip, now_us))
 		return 0;
 	uint16_t raw = motor_raw(s, pos);
 	if (s->ops.fader(s->backend, strip, raw) <= 0)

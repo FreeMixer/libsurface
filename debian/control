@@ -16,8 +16,8 @@ Description: device behaviour of motorised control surfaces
  once for every surface and every host: a motor-fader policy that never fights
  the hand, touch with a self-heal and a release debounce, the bank window, a
  shadow of the whole board replayed when a device comes back blank, meter steps
- with hysteresis, LED ring rendering, and the health lists of faders that cannot
- be trusted. It speaks no wire and knows no mixing semantics.
+ with hysteresis and LED ring rendering. It speaks no wire and knows no mixing
+ semantics.
 
 Package: libsurface-dev
 Section: libdevel

@@ -24,8 +24,7 @@ libsurface is the device behaviour of a motorised control surface, written once 
 surface and every host: a motor-fader policy that never fights the hand, touch with a self-heal
 for a lost release and a debounce for a chattering sensor, the bank window, a shadow of the
 whole board replayed when a device comes back blank, meter steps with hysteresis, LED ring
-rendering, and the health lists of faders that cannot be trusted. It speaks no wire and knows no
-mixing semantics: a backend encodes, a host names what each strip shows.
+rendering. It speaks no wire and knows no mixing semantics: a backend encodes, a host names what each strip shows.
 
 %package devel
 Summary:        Development files for libsurface
@@ -68,5 +67,5 @@ make CFLAGS="%{optflags}" test
   target, an implicit-touch window, the echo guard, a trailing coalesce),
   touch with a self-heal and a release debounce, the bank window, the
   board shadow and its replay, meter steps, ring rendering, and the
-  do-not-drive, do-not-read, jump-filter and quarantine rules for the
-  Control|24's tired faders. Caller time, no threads.
+  Control|24's release debounce and set-point echo. Caller time, no
+  threads.
