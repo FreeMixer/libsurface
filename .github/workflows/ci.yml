@@ -1,0 +1,50 @@
+name: ci
+# A push runs on main only; a pull request already runs its branch.
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    name: build + test (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    # A backstop only: every test carries its own timeout (tests/run-test.sh).
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['fedora:44', 'debian:bookworm', 'debian:trixie']
+    container: ${{ matrix.image }}
+    steps:
+      - name: Toolchain
+        run: |
+          if command -v dnf >/dev/null; then
+            dnf -y install gcc make git pkgconf-pkg-config diffutils python3-pyyaml
+          else
+            apt-get update && apt-get -y install --no-install-recommends gcc libc6-dev make git pkg-config ca-certificates python3-yaml
+          fi
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the public-sources gate reads every commit message
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Build
+        run: make
+      - name: Unit tests
+        run: make test
+      - name: Shared library
+        run: make shared
+      - name: Install, and build a consumer against the installed tree
+        run: |
+          make install PREFIX=/usr DESTDIR="$PWD/stage"
+          cat > consumer.c <<'C'
+          #include <surface/surface.h>
+          int main(void)
+          {
+                  struct surface_geometry g;
+                  return surface_geometry_preset(SURFACE_MODEL_CONTROL24, &g) == 0 && g.strips == 24 ? 0 : 1;
+          }
+          C
+          PKG_CONFIG_SYSROOT_DIR="$PWD/stage" PKG_CONFIG_LIBDIR="$PWD/stage/usr/lib/pkgconfig" \
+            sh -c 'cc consumer.c $(pkg-config --static --cflags --libs libsurface) -o consumer'
+          ./consumer
