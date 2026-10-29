@@ -84,6 +84,25 @@ endif
 
 all: diginet
 
+# The module's tests run on libdiginet's desk emulator, copied into tests/diginet/
+# (tests/diginet/SOURCE): libdiginet installs no test code.
+EMU    := tests/diginet/desk_emu.c
+EMU_H  := tests/diginet/desk_emu.h tests/diginet/emu_pump.h tests/diginet/netns.h
+DTESTS := tests/diginet/test_diginet
+
+tests/diginet/test_diginet: tests/diginet/test_diginet.c $(EMU) $(EMU_H) libsurface-diginet.a libsurface.a
+	$(CC) $(CFLAGS) $(WARN) $(INC) $(DIGINET_CFLAGS) -Itests/diginet $< $(EMU) \
+	    libsurface-diginet.a libsurface.a $(DIGINET_LIBS) $(LIBS) $(LDFLAGS) -o $@
+
+ifeq ($(HAVE_DIGINET),yes)
+test-diginet: $(DTESTS)
+	$(RUN_TEST) tests/diginet/test_diginet
+	$(RUN_TEST) tests/diginet/emu-sync-check.sh $(DIGINET_SRC)
+else
+test-diginet:
+	@echo "SKIP: the DigiNet module's tests: $(DIGINET_NONE)"
+endif
+
 $(TESTS): tests/%: tests/%.c tests/harness.h libsurface.a
 	$(CC) $(CFLAGS) $(WARN) $(INC) $< libsurface.a $(LIBS) -o $@
 
@@ -124,6 +143,7 @@ test: $(TESTS)
 	$(RUN_TEST) tests/test_workflows.sh
 	$(RUN_TEST) tests/public-sources-check.sh
 	$(RUN_TEST) tests/test_public_sources.sh
+	@$(MAKE) --no-print-directory test-diginet
 
 # The pkg-config file is written at install time, from the install's own PREFIX and LIBDIR: a
 # file kept from an earlier build would name that build's directories.
@@ -161,7 +181,7 @@ endif
 
 clean:
 	rm -f $(OBJS) $(OBJS:.o=.d) libsurface.a $(TESTS) libsurface.so*
-	rm -f $(DOBJS) $(DOBJS:.o=.d) libsurface-diginet.a libsurface-diginet.so*
+	rm -f $(DOBJS) $(DOBJS:.o=.d) libsurface-diginet.a libsurface-diginet.so* $(DTESTS)
 	rm -rf build
 
-.PHONY: all diginet test shared shared-diginet install install-common install-shared clean
+.PHONY: all diginet test test-diginet shared shared-diginet install install-common install-shared clean
