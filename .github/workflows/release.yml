@@ -30,6 +30,8 @@ jobs:
       publish: ${{ github.ref_type == 'tag' }}
       needs-mod-host: false
       channel-deps: false
+      # the shared build's changelog step runs python3, which the fedora image does not carry
+      build-packages: python3
     secrets: inherit
 
   # after the RPMs: both publish into one tree, and a push that loses a race is refused
