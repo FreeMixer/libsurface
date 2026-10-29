@@ -45,6 +45,11 @@ struct fader_state {
 	 * operator is treated as holding this cap even without a touch message. */
 	uint8_t implicit_set;
 	uint64_t implicit_until;
+	/* When the hand last moved this cap (the surface's last report of it). A served frame sent
+	 * before it is an older echo, or a change the hand has since overridden: it never becomes
+	 * the target (#4). */
+	uint8_t hand_set;
+	uint64_t hand_at;
 	/* The trailing flush (SURFACE_MOTOR_COALESCE_MS); at most one per fader. It ends a burst,
 	 * and it outlives a hold: while the fader is handled it re-arms, so the target withheld
 	 * during the hold reaches the motor when the hold lapses. */

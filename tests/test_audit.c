@@ -145,7 +145,10 @@ static void throw_and_release(int final_after_off, enum order order, unsigned la
 		}
 	}
 	host_deliver(idx, n);
-	advance(120);   /* outlast the trailing coalesce window */
+	/* Outlast the implicit-touch window, not only the coalesce window: a stale target withheld
+	 * inside the window is driven when it lapses, so a clock that stops short of it hides the
+	 * defect (#4: at 120 ms both final-first cases passed with the bug in place). */
+	advance(SURFACE_IMPLICIT_TOUCH_MS + 400);
 	CHK(NEAR(F.last_move, last, 1e-3));   /* the host holds where the hand left the cap... */
 	double w[LOG_MAX];
 	int nw = motor_writes(0, w, LOG_MAX);
@@ -163,12 +166,10 @@ T(final_value_round_trip)
 		for (int o = IN_ORDER; o <= FINAL_FIRST; o++)
 			for (int l = 0; l < 2; l++) {
 				unsigned lag = l ? 700 : 30;
-				/* NOT covered, as in the TypeScript: a stale echo reordered BEHIND the
-				 * final one and arriving after the implicit window (600 ms) closed. The
-				 * policy cannot tell it from a genuine remote change; hosts deliver in
-				 * commit order, so it does not occur. */
-				if (o == FINAL_FIRST && lag > SURFACE_IMPLICIT_TOUCH_MS)
-					continue;
+				/* Final-first at 700 ms, a stale echo reordered BEHIND the final one and
+				 * arriving after the implicit window closed, was left out of the
+				 * TypeScript: by arrival the policy cannot tell it from a genuine remote
+				 * change. Its send time, older than the hand's last move, does (#4). */
 				int before = fails;
 				throw_and_release(after, (enum order)o, lag);
 				if (fails != before)
