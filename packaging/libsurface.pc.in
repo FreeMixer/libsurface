@@ -1,0 +1,10 @@
+prefix=@PREFIX@
+libdir=@LIBDIR@
+includedir=@INCDIR@
+
+Name: libsurface
+Description: Device behaviour of motorised control surfaces: motor faders, touch, banks, replay, meters
+Version: @VERSION@
+Libs: -L${libdir} -lsurface
+Libs.private: -lm
+Cflags: -I${includedir}

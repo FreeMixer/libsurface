@@ -1,0 +1,11 @@
+libsurface (0.1.0) unstable; urgency=medium
+
+  * First release: the device behaviour core, ported from a TypeScript
+    X-Touch driver with its tests. The motor-fader policy (touch flag plus
+    target, an implicit-touch window, the echo guard, a trailing coalesce),
+    touch with a self-heal and a release debounce, the bank window, the
+    board shadow and its replay, meter steps, ring rendering, and the
+    do-not-drive, do-not-read, jump-filter and quarantine rules for the
+    Control|24's tired faders. Caller time, no threads.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Thu, 29 Oct 2026 12:00:00 +0100

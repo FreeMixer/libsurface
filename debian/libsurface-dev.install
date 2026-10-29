@@ -1,0 +1,3 @@
+usr/include/surface
+usr/lib/*/libsurface.so
+usr/lib/*/pkgconfig/libsurface.pc
