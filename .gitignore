@@ -9,3 +9,7 @@
 !/tests/test_*.c
 !/tests/test_*.sh
 __pycache__/
+/tools/surface-c24
+/tests/diginet/test_*
+!/tests/diginet/test_*.c
+!/tests/diginet/test_*.sh
