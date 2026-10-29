@@ -7,7 +7,8 @@
  *
  * The host has three manners, as the TypeScript suites' fakes had:
  *   HOST_ECHO    every move comes straight back as a served frame (FakeHost);
- *   HOST_LAG     a move is recorded and its echo held until the test delivers it (LaggingHost);
+ *   HOST_LAG     a move is recorded and its echo held until the test delivers it (LaggingHost),
+ *                stamped with the time the host committed the move: its send time;
  *   HOST_REFUSE  a move is refused: the surface hears refused() and the row the host holds.
  * An echo is delivered after the input call returns, at the same time.
  */
@@ -66,6 +67,7 @@ struct fake {
 	int npending;
 	surface_target held_t[LOG_MAX];    /* HOST_LAG: the echoes the test delivers */
 	double held_p[LOG_MAX];
+	uint64_t held_at[LOG_MAX];         /* HOST_LAG: when the host committed each (its send time) */
 	int nheld;
 	double row[2048];                  /* the host's row per target (targets < 2048) */
 	int moves;                         /* FADER_MOVED events seen */
@@ -150,6 +152,7 @@ static inline void on_event(void *ctx, const struct surface_event *ev)
 		F.row[ev->target] = ev->position;
 	if (F.manner == HOST_LAG) {
 		F.held_t[F.nheld] = ev->target;
+		F.held_at[F.nheld] = F.now;
 		F.held_p[F.nheld++] = ev->position;
 		return;
 	}
@@ -172,20 +175,23 @@ static inline void host_answer(void)
 	F.npending = 0;
 }
 
-/* HOST_LAG: deliver the held echoes in `order` (indices into the held list; NULL = in order). */
+/* HOST_LAG: deliver the held echoes in `order` (indices into the held list; NULL = in order),
+ * each with its send time. */
 static inline void host_deliver(const int *order, int n)
 {
 	surface_target t[LOG_MAX];
 	double p[LOG_MAX];
+	uint64_t at[LOG_MAX];
 	int nh = F.nheld;
 	memcpy(t, F.held_t, sizeof t[0] * (size_t)nh);
 	memcpy(p, F.held_p, sizeof p[0] * (size_t)nh);
+	memcpy(at, F.held_at, sizeof at[0] * (size_t)nh);
 	F.nheld = 0;
 	if (!order)
 		n = nh;
 	for (int i = 0; i < n; i++) {
 		int k = order ? order[i] : i;
-		surface_fader_served(F.s, t[k], p[k], F.now);
+		surface_fader_served_at(F.s, t[k], p[k], at[k], F.now);
 	}
 }
 

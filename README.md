@@ -31,6 +31,7 @@ surface_bank_set(s, targets, n);                 /* what the strips show: opaque
 surface_in_online(s, now_us);                    /* the backend: the device is ready; the board replays */
 
 surface_fader_served(s, target, 0.75, now_us);   /* the host's truth -> the motor, by the policy */
+surface_fader_served_at(s, target, 0.75, sent_us, now_us);   /* the same, with when the host sent it */
 surface_scribble(s, 0, 0, "KICK");
 surface_meter(s, 0, 0, fill, now_us);
 
