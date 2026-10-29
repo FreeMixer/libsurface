@@ -2,7 +2,14 @@
 
 The device behaviour of a motorised control surface, written once in C for every surface and every host: the motor-fader policy, touch, the bank window, a shadow of the whole board and its replay, meter steps and LED ring rendering. A Behringer X-Touch, a Digidesign Control|24 and, later, a ProControl run on the same code; a mixer or DAW links it and keeps only its mixing semantics (what a strip shows, names, colours, its verbs).
 
-The design is [FreeMixer/libdiginet#29](https://github.com/FreeMixer/libdiginet/issues/29). This repository holds its phase P1, the core. The backends (`libsurface-mcu` over libmackie, `libsurface-diginet` over [libdiginet](https://github.com/FreeMixer/libdiginet)) and the Python binding come in later phases; the backend interface they plug into is already in the header.
+The design is [FreeMixer/libdiginet#29](https://github.com/FreeMixer/libdiginet/issues/29). This repository holds the core and its optional modules, one per device family, each its own library and package so a host installs only what it uses:
+
+| Module | Library | Packages | Needs |
+|---|---|---|---|
+| core | `libsurface` | `libsurface`, `libsurface-devel` (deb: `libsurface0`, `libsurface-dev`) | libc, libm |
+| DigiNet: the Control\|24 | `libsurface-diginet` | `libsurface-diginet`, `libsurface-diginet-devel`, `surface-c24` (deb: `libsurface-diginet0`, `libsurface-diginet-dev`, `surface-c24`) | [libdiginet](https://github.com/FreeMixer/libdiginet) 0.1.2 or later |
+
+The protocol libraries stay independent and never depend on libsurface. The X-Touch module (over libmackie) and the Python binding come in later phases.
 
 ## What it does
 
@@ -14,6 +21,29 @@ The design is [FreeMixer/libdiginet#29](https://github.com/FreeMixer/libdiginet/
 - **Meter steps** with hysteresis, sent only on a change, with a keep-alive for a surface that decays a lit meter by itself.
 
 What it is not: it speaks no wire, owns no socket, thread or clock, and knows no channel or verb. Each call that needs time takes the caller's `now_us`; `surface_deadline()` and `surface_tick()` run the timers. It allocates once, in `surface_create()`.
+
+## The DigiNet module
+
+`libsurface-diginet` ([`include/surface/surface_diginet.h`](include/surface/surface_diginet.h), `src/diginet/`) drives a Digidesign Control|24 over libdiginet's desk mux:
+
+- **One listener for every desk.** One packet socket hears every interface (libdiginet's `diginet_packet_open_any`, or the descriptor `diginet-packet-helper` hands over); each desk that announces is reported to the host with its MAC, interface, name and version, and the host attaches the ones it wants.
+- **One surface per desk,** with the Control|24 geometry: 24 strips, 10-bit faders, 14-segment meters on two sides, 15-LED rings, 4-character scribbles, an 8-digit counter, the touch-release debounce and the set-point echo.
+- **The board on every session.** A new session blanks the desk; every ONLINE replays everything the host wrote, faders included. A desk that drops off and comes back, or a host that restarts, is repainted without the host asking.
+- **The wire both ways.** Writes go through libdiginet's encoders into the session queue, where a newer write to an address replaces a queued one; faders, touches, keys, V-Pots and the jog come up as events.
+- **Warnings.** A desk that announces but answers no wake (booted on a noisy link) and a desk in session with another host are raised as warnings.
+
+```c
+int fd = diginet_packet_open_by_helper(NULL);              /* the socket, from the helper */
+struct surface_diginet *d;
+surface_diginet_open(&d, fd, on_desk, host);               /* on_desk(host, info, present) */
+/* in on_desk, for a desk the host wants: */
+struct surface *s;
+surface_diginet_attach(d, info->mac, on_event, host, &s);  /* then the API below on s */
+/* the loop: poll surface_diginet_fd(d) until surface_diginet_deadline(d, now), then */
+surface_diginet_service(d, now_us);
+```
+
+`surface-c24 [--helper PATH] [--fifo PATH]` drives a desk through the whole stack with no privilege of its own: its socket comes from `diginet-packet-helper`. It attaches the first Control|24 that announces, labels its strips F1..F24, plays the console (each move served back), mirrors each fader on its own meter, and prints every event. The FIFO takes `scrib S TEXT`, `led NAME:S|KEY on|off`, `fader S 0..1`, `ring S MASK` and `quit`, strips counted from 1; `quit` leaves `OFF ` on the scribbles, which the desk keeps under "Offline".
 
 ## The API
 
@@ -45,7 +75,7 @@ Up the seam go events with the strip's target; down go fader targets, LED states
 
 ## Building
 
-`make`, `make test`, `make install`. A C11 compiler, `make` and libm; nothing else. See [BUILDING.md](BUILDING.md).
+`make`, `make test`, `make install`. A C11 compiler, `make` and libm for the core; the DigiNet module is built when libdiginet with the desk mux is found (pkg-config, or `make DIGINET_SRC=../libdiginet`). See [BUILDING.md](BUILDING.md).
 
 ## Licence
 
