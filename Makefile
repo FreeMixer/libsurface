@@ -116,6 +116,7 @@ test-diginet: $(DTESTS) $(C24)
 	$(RUN_TEST) tests/diginet/test_diginet
 	$(RUN_TEST) tests/diginet/test_c24_tool "$(DIGINET_HELPER)" $(C24)
 	$(RUN_TEST) tests/diginet/emu-sync-check.sh $(DIGINET_SRC)
+	$(RUN_TEST) tests/diginet/test_install.sh "$(DIGINET_SRC)"
 else
 test-diginet:
 	@echo "SKIP: the DigiNet module's tests: $(DIGINET_NONE)"
