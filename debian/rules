@@ -5,20 +5,24 @@ include /usr/share/dpkg/buildflags.mk
 
 MULTIARCH = $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 
-# The soname's major is SURFACE_ABI of include/surface/surface.h; the package name libsurface0
-# carries it, and tests/conformance-packaging.sh holds the two to each other.
+# The sonames' majors are SURFACE_ABI of include/surface/surface.h and SURFACE_DIGINET_ABI of
+# include/surface/surface_diginet.h; the package names libsurface0 and libsurface-diginet0 carry
+# them, and tests/conformance-packaging.sh holds each pair to each other. DIGINET=yes: the module
+# or a failed build; SURFACE_C24_HELPER empty: surface-c24 finds diginet-packet-helper in PATH.
+MKFLAGS = DIGINET=yes SURFACE_C24_HELPER=
+
 %:
 	dh $@
 
 override_dh_auto_build:
-	$(MAKE) CFLAGS="$(CFLAGS) $(CPPFLAGS)" LDFLAGS="$(LDFLAGS)" shared
+	$(MAKE) CFLAGS="$(CFLAGS) $(CPPFLAGS)" LDFLAGS="$(LDFLAGS)" $(MKFLAGS) shared
 
 override_dh_auto_install:
-	$(MAKE) CFLAGS="$(CFLAGS) $(CPPFLAGS)" LDFLAGS="$(LDFLAGS)" install-shared \
+	$(MAKE) CFLAGS="$(CFLAGS) $(CPPFLAGS)" LDFLAGS="$(LDFLAGS)" $(MKFLAGS) install-shared \
 	  DESTDIR=$(CURDIR)/debian/tmp PREFIX=/usr LIBDIR=/usr/lib/$(MULTIARCH)
 
 override_dh_auto_test:
-	$(MAKE) CFLAGS="$(CFLAGS) $(CPPFLAGS)" test
+	$(MAKE) CFLAGS="$(CFLAGS) $(CPPFLAGS)" $(MKFLAGS) test
 
 override_dh_auto_clean:
 	$(MAKE) clean

@@ -7,5 +7,9 @@ libsurface (0.1.0) unstable; urgency=medium
     board shadow and its replay, meter steps, ring rendering, and the
     Control|24's release debounce and set-point echo. Caller time, no
     threads.
+  * The DigiNet module, libsurface-diginet: a Control|24 under libsurface
+    over libdiginet's desk mux, one surface per attached desk, the board
+    replayed on every session, DESK_DEAF and FOREIGN as warnings; and
+    surface-c24, which drives a desk with no privilege of its own.
 
  -- Pau Aliagas <linuxnow@gmail.com>  Thu, 29 Oct 2026 12:00:00 +0100

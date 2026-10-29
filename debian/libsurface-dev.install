@@ -1,3 +1,3 @@
-usr/include/surface
+usr/include/surface/surface.h
 usr/lib/*/libsurface.so
 usr/lib/*/pkgconfig/libsurface.pc

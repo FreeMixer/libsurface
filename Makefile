@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
-# libsurface: the device behaviour of motorised control surfaces, as libsurface.a. See
-# BUILDING.md.
+# libsurface: the device behaviour of motorised control surfaces, as libsurface.a, and its
+# optional DigiNet module (a Control|24 over libdiginet) as libsurface-diginet.a. See BUILDING.md.
 #
-# `make shared` and `make install-shared` are what the packages build: the same objects as a
-# shared library.
+# `make shared` and `make install-shared` are what the packages build: the same objects as shared
+# libraries.
 
 CC      ?= cc
 AR      ?= ar
@@ -18,6 +18,7 @@ LIBS    := -lm
 PREFIX  ?= /usr/local
 LIBDIR  ?= $(PREFIX)/lib
 INCDIR  ?= $(PREFIX)/include
+BINDIR  ?= $(PREFIX)/bin
 PCDIR   ?= $(LIBDIR)/pkgconfig
 DESTDIR ?=
 
@@ -44,6 +45,96 @@ src/%.o: src/%.c
 libsurface.a: $(OBJS)
 	$(AR) rcs $@ $(OBJS)
 
+# ---- the DigiNet module (libsurface-diginet) ------------------------------------------------
+# Built when libdiginet with the desk mux (diginet/transport/diginet_mux.h, libdiginet 0.1.2 and
+# later) is found: through pkg-config when it is installed, or from a built source tree with
+#   make DIGINET_SRC=../libdiginet
+# which is linked from its archives (for working on the two together, never for a package).
+# Without it the core builds and tests alone, and `make` and `make test` say so on a SKIP line.
+DIGINET_SRC ?=
+ifneq ($(DIGINET_SRC),)
+DIGINET_CFLAGS := -I$(DIGINET_SRC)/include
+DIGINET_LIBS   := $(DIGINET_SRC)/libdiginet-transport.a $(DIGINET_SRC)/libdiginet.a
+DIGINET_HELPER ?= $(abspath $(DIGINET_SRC))/tools/diginet-packet-helper
+else
+DIGINET_CFLAGS := $(shell pkg-config --cflags libdiginet-transport 2>/dev/null)
+DIGINET_LIBS   := $(shell pkg-config --libs libdiginet-transport 2>/dev/null)
+DIGINET_HELPER ?= $(shell command -v diginet-packet-helper 2>/dev/null)
+endif
+# DIGINET=auto (the default) builds the module when libdiginet is found; DIGINET=yes stops the
+# build when it is not (the packages); DIGINET=no never builds it.
+DIGINET ?= auto
+ifneq ($(DIGINET),no)
+HAVE_DIGINET := $(shell printf '\043include <diginet/transport/diginet_mux.h>\n' | \
+	$(CC) $(DIGINET_CFLAGS) -E -x c - >/dev/null 2>&1 && echo yes)
+endif
+DIGINET_NONE := libdiginet with the desk mux (diginet/transport/diginet_mux.h) was not found: \
+	install libdiginet 0.1.2 or later, or set DIGINET_SRC to a built libdiginet tree
+ifeq ($(DIGINET),no)
+DIGINET_NONE := DIGINET=no
+endif
+ifeq ($(DIGINET),yes)
+ifneq ($(HAVE_DIGINET),yes)
+$(error $(DIGINET_NONE))
+endif
+endif
+
+DOBJS := src/diginet/surface_diginet.o
+DABI  := $(shell sed -n 's/^\#define SURFACE_DIGINET_ABI  *\([0-9]*\)$$/\1/p' include/surface/surface_diginet.h)
+
+src/diginet/%.o: src/diginet/%.c
+	$(CC) $(CFLAGS) $(WARN) -MMD -MP $(INC) $(DIGINET_CFLAGS) -c $< -o $@
+
+-include $(DOBJS:.o=.d)
+
+libsurface-diginet.a: $(DOBJS)
+	$(AR) rcs $@ $(DOBJS)
+
+# surface-c24. Its default helper is DIGINET_SRC's, else diginet-packet-helper in PATH; the
+# packages build it with SURFACE_C24_HELPER= (empty: PATH at run time).
+C24 := tools/surface-c24
+SURFACE_C24_HELPER ?= $(DIGINET_HELPER)
+C24_DEF = $(if $(SURFACE_C24_HELPER),-DSURFACE_C24_HELPER='"$(SURFACE_C24_HELPER)"')
+
+$(C24): tools/surface-c24.c libsurface-diginet.a libsurface.a
+	$(CC) $(CFLAGS) $(WARN) $(INC) $(DIGINET_CFLAGS) $(C24_DEF) $< libsurface-diginet.a \
+	    libsurface.a $(DIGINET_LIBS) $(LIBS) $(LDFLAGS) -o $@
+
+ifeq ($(HAVE_DIGINET),yes)
+diginet: libsurface-diginet.a $(C24)
+else
+diginet:
+	@echo "SKIP: the DigiNet module (libsurface-diginet) not built: $(DIGINET_NONE)"
+endif
+
+all: diginet
+
+# The module's tests run on libdiginet's desk emulator, copied into tests/diginet/
+# (tests/diginet/SOURCE): libdiginet installs no test code.
+EMU    := tests/diginet/desk_emu.c
+EMU_H  := tests/diginet/desk_emu.h tests/diginet/emu_pump.h tests/diginet/netns.h
+DTESTS := tests/diginet/test_diginet tests/diginet/test_c24_tool
+
+tests/diginet/test_diginet: tests/diginet/test_diginet.c $(EMU) $(EMU_H) libsurface-diginet.a libsurface.a
+	$(CC) $(CFLAGS) $(WARN) $(INC) $(DIGINET_CFLAGS) -Itests/diginet $< $(EMU) \
+	    libsurface-diginet.a libsurface.a $(DIGINET_LIBS) $(LIBS) $(LDFLAGS) -o $@
+
+tests/diginet/test_c24_tool: tests/diginet/test_c24_tool.c $(EMU) $(EMU_H)
+	$(CC) $(CFLAGS) $(WARN) $(INC) $(DIGINET_CFLAGS) -Itests/diginet $< $(EMU) $(DIGINET_LIBS) \
+	    $(LDFLAGS) -o $@
+
+# test_c24_tool takes the helper to run the tool with: "" (none found) is its SKIP.
+ifeq ($(HAVE_DIGINET),yes)
+test-diginet: $(DTESTS) $(C24)
+	$(RUN_TEST) tests/diginet/test_diginet
+	$(RUN_TEST) tests/diginet/test_c24_tool "$(DIGINET_HELPER)" $(C24)
+	$(RUN_TEST) tests/diginet/emu-sync-check.sh $(DIGINET_SRC)
+	$(RUN_TEST) tests/diginet/test_install.sh "$(DIGINET_SRC)"
+else
+test-diginet:
+	@echo "SKIP: the DigiNet module's tests: $(DIGINET_NONE)"
+endif
+
 $(TESTS): tests/%: tests/%.c tests/harness.h libsurface.a
 	$(CC) $(CFLAGS) $(WARN) $(INC) $< libsurface.a $(LIBS) -o $@
 
@@ -56,7 +147,27 @@ $(SO): $(OBJS)
 	ln -sf $@ libsurface.so.$(ABI)
 	ln -sf libsurface.so.$(ABI) libsurface.so
 
-shared: $(SO)
+DSO := libsurface-diginet.so.$(VERSION)
+
+$(DSO): $(DOBJS) $(SO)
+	$(CC) $(LDFLAGS) -shared -Wl,-soname,libsurface-diginet.so.$(DABI) -Wl,--no-undefined -o $@ \
+	    $(DOBJS) -L. -lsurface $(DIGINET_LIBS) $(LIBS)
+	ln -sf $@ libsurface-diginet.so.$(DABI)
+	ln -sf libsurface-diginet.so.$(DABI) libsurface-diginet.so
+
+# surface-c24 linked against the shared libraries, as the packages carry it
+build/surface-c24: tools/surface-c24.c $(DSO)
+	@mkdir -p build
+	$(CC) $(CFLAGS) $(WARN) $(INC) $(DIGINET_CFLAGS) $(C24_DEF) $< $(LDFLAGS) \
+	    -L. -lsurface-diginet -lsurface $(DIGINET_LIBS) $(LIBS) -o $@
+
+ifeq ($(HAVE_DIGINET),yes)
+shared-diginet: $(DSO) build/surface-c24
+else
+shared-diginet: diginet
+endif
+
+shared: $(SO) shared-diginet
 
 test: $(TESTS)
 	$(RUN_TEST) tests/test_motor
@@ -70,31 +181,49 @@ test: $(TESTS)
 	$(RUN_TEST) tests/test_workflows.sh
 	$(RUN_TEST) tests/public-sources-check.sh
 	$(RUN_TEST) tests/test_public_sources.sh
+	@$(MAKE) --no-print-directory test-diginet
 
 # The pkg-config file is written at install time, from the install's own PREFIX and LIBDIR: a
 # file kept from an earlier build would name that build's directories.
 PCSED = sed -e 's|@PREFIX@|$(PREFIX)|' -e 's|@LIBDIR@|$(LIBDIR)|' -e 's|@INCDIR@|$(INCDIR)|' \
 	    -e 's|@VERSION@|$(VERSION)|'
 
-# What both installs carry: the header and the pkg-config file.
+# What both installs carry: the headers and the pkg-config files, the module's when it is built.
 install-common:
 	install -d $(DESTDIR)$(INCDIR)/surface $(DESTDIR)$(PCDIR)
-	install -m 644 include/surface/*.h $(DESTDIR)$(INCDIR)/surface/
+	install -m 644 include/surface/surface.h $(DESTDIR)$(INCDIR)/surface/
 	$(PCSED) packaging/libsurface.pc.in > $(DESTDIR)$(PCDIR)/libsurface.pc
+ifeq ($(HAVE_DIGINET),yes)
+	install -m 644 include/surface/surface_diginet.h $(DESTDIR)$(INCDIR)/surface/
+	$(PCSED) packaging/libsurface-diginet.pc.in > $(DESTDIR)$(PCDIR)/libsurface-diginet.pc
+endif
 
-install: libsurface.a install-common
+install: libsurface.a diginet install-common
 	install -d $(DESTDIR)$(LIBDIR)
 	install -m 644 libsurface.a $(DESTDIR)$(LIBDIR)/
+ifeq ($(HAVE_DIGINET),yes)
+	install -d $(DESTDIR)$(BINDIR)
+	install -m 644 libsurface-diginet.a $(DESTDIR)$(LIBDIR)/
+	install -m 755 $(C24) $(DESTDIR)$(BINDIR)/
+endif
 
-# The packages: the shared library with its soname links.
+# The packages: the shared libraries with their soname links.
 install-shared: shared install-common
 	install -d $(DESTDIR)$(LIBDIR)
 	install -m 755 $(SO) $(DESTDIR)$(LIBDIR)/
 	ln -sf $(SO) $(DESTDIR)$(LIBDIR)/libsurface.so.$(ABI)
 	ln -sf libsurface.so.$(ABI) $(DESTDIR)$(LIBDIR)/libsurface.so
+ifeq ($(HAVE_DIGINET),yes)
+	install -d $(DESTDIR)$(BINDIR)
+	install -m 755 build/surface-c24 $(DESTDIR)$(BINDIR)/
+	install -m 755 $(DSO) $(DESTDIR)$(LIBDIR)/
+	ln -sf $(DSO) $(DESTDIR)$(LIBDIR)/libsurface-diginet.so.$(DABI)
+	ln -sf libsurface-diginet.so.$(DABI) $(DESTDIR)$(LIBDIR)/libsurface-diginet.so
+endif
 
 clean:
 	rm -f $(OBJS) $(OBJS:.o=.d) libsurface.a $(TESTS) libsurface.so*
+	rm -f $(DOBJS) $(DOBJS:.o=.d) libsurface-diginet.a libsurface-diginet.so* $(DTESTS) $(C24)
 	rm -rf build
 
-.PHONY: all test shared install install-common install-shared clean
+.PHONY: all diginet test test-diginet shared shared-diginet install install-common install-shared clean

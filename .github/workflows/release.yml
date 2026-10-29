@@ -7,8 +7,11 @@ name: release
 # publishes them to the FreeMixer channel and attaches them to the GitHub release. A pull request or
 # any other run is a dry run: it builds and lints everything and publishes nothing.
 #
-# Either way, the packages the run built are then installed in clean containers of every release and
-# architecture, and a consumer is built against the development package (tests/package-check.sh).
+# Either way, the core's packages the run built are then installed in clean containers of every
+# release and architecture, and a consumer is built against the development package
+# (tests/package-check.sh). The DigiNet module's packages need libdiginet 0.1.2 or later, which
+# the build takes from the FreeMixer channel (channel-deps), and the shared workflows install
+# them against that channel.
 
 on:
   push:
@@ -26,10 +29,11 @@ jobs:
     uses: FreeMixer/.github/.github/workflows/build-rpm.yml@v1
     with:
       package-name: libsurface
-      binary-names: libsurface libsurface-devel
+      binary-names: libsurface libsurface-devel libsurface-diginet libsurface-diginet-devel surface-c24
       publish: ${{ github.ref_type == 'tag' }}
       needs-mod-host: false
-      channel-deps: false
+      # libdiginet-devel with the desk mux, for the DigiNet module
+      channel-deps: true
       # the shared build's changelog step runs python3, which the fedora image does not carry
       build-packages: python3
     secrets: inherit
@@ -41,11 +45,12 @@ jobs:
     uses: FreeMixer/.github/.github/workflows/build-deb.yml@v1
     with:
       package-name: libsurface
-      binary-names: libsurface0 libsurface-dev
+      binary-names: libsurface0 libsurface-dev libsurface-diginet0 libsurface-diginet-dev surface-c24
       publish: ${{ github.ref_type == 'tag' }}
       dependencies: ''
-      requires: ''
-      channel-deps: false
+      requires: 'libdiginet-transport0'
+      # libdiginet-dev with the desk mux, for the DigiNet module
+      channel-deps: true
     secrets: inherit
 
   install-rpm:
