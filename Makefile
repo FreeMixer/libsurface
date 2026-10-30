@@ -214,6 +214,20 @@ $(SO): $(OBJS)
 
 DSO := libsurface-diginet.so.$(VERSION)
 
+MSO := libsurface-mackie.so.$(VERSION)
+
+$(MSO): $(MOBJS) $(SO)
+	$(CC) $(LDFLAGS) -shared -Wl,-soname,libsurface-mackie.so.$(MABI) -Wl,--no-undefined -o $@ \
+	    $(MOBJS) -L. -lsurface $(MACKIE_LIBS) $(LIBS)
+	ln -sf $@ libsurface-mackie.so.$(MABI)
+	ln -sf libsurface-mackie.so.$(MABI) libsurface-mackie.so
+
+ifeq ($(HAVE_MACKIE),yes)
+shared-mackie: $(MSO)
+else
+shared-mackie: mackie
+endif
+
 $(DSO): $(DOBJS) $(SO)
 	$(CC) $(LDFLAGS) -shared -Wl,-soname,libsurface-diginet.so.$(DABI) -Wl,--no-undefined -o $@ \
 	    $(DOBJS) -L. -lsurface $(DIGINET_LIBS) $(LIBS)
@@ -232,7 +246,7 @@ else
 shared-diginet: diginet
 endif
 
-shared: $(SO) shared-diginet
+shared: $(SO) shared-diginet shared-mackie
 
 test: $(TESTS) $(KEYS_TEST)
 	$(RUN_TEST) tests/test_motor
@@ -248,6 +262,7 @@ test: $(TESTS) $(KEYS_TEST)
 	$(RUN_TEST) tests/public-sources-check.sh
 	$(RUN_TEST) tests/test_public_sources.sh
 	@$(MAKE) --no-print-directory test-diginet
+	@$(MAKE) --no-print-directory test-mackie
 
 # The pkg-config file is written at install time, from the install's own PREFIX and LIBDIR: a
 # file kept from an earlier build would name that build's directories.
@@ -263,10 +278,17 @@ ifeq ($(HAVE_DIGINET),yes)
 	install -m 644 include/surface/surface_diginet.h include/surface/surface_diginet_keys.h $(DESTDIR)$(INCDIR)/surface/
 	$(PCSED) packaging/libsurface-diginet.pc.in > $(DESTDIR)$(PCDIR)/libsurface-diginet.pc
 endif
+ifeq ($(HAVE_MACKIE),yes)
+	install -m 644 include/surface/surface_mackie.h $(DESTDIR)$(INCDIR)/surface/
+	$(PCSED) packaging/libsurface-mackie.pc.in > $(DESTDIR)$(PCDIR)/libsurface-mackie.pc
+endif
 
-install: libsurface.a diginet install-common
+install: libsurface.a diginet mackie install-common
 	install -d $(DESTDIR)$(LIBDIR)
 	install -m 644 libsurface.a $(DESTDIR)$(LIBDIR)/
+ifeq ($(HAVE_MACKIE),yes)
+	install -m 644 libsurface-mackie.a $(DESTDIR)$(LIBDIR)/
+endif
 ifeq ($(HAVE_DIGINET),yes)
 	install -d $(DESTDIR)$(BINDIR)
 	install -m 644 libsurface-diginet.a $(DESTDIR)$(LIBDIR)/
@@ -279,6 +301,11 @@ install-shared: shared install-common
 	install -m 755 $(SO) $(DESTDIR)$(LIBDIR)/
 	ln -sf $(SO) $(DESTDIR)$(LIBDIR)/libsurface.so.$(ABI)
 	ln -sf libsurface.so.$(ABI) $(DESTDIR)$(LIBDIR)/libsurface.so
+ifeq ($(HAVE_MACKIE),yes)
+	install -m 755 $(MSO) $(DESTDIR)$(LIBDIR)/
+	ln -sf $(MSO) $(DESTDIR)$(LIBDIR)/libsurface-mackie.so.$(MABI)
+	ln -sf libsurface-mackie.so.$(MABI) $(DESTDIR)$(LIBDIR)/libsurface-mackie.so
+endif
 ifeq ($(HAVE_DIGINET),yes)
 	install -d $(DESTDIR)$(BINDIR)
 	install -m 755 build/surface-c24 $(DESTDIR)$(BINDIR)/
@@ -292,7 +319,7 @@ endif
 clean:
 	rm -f $(OBJS) $(OBJS:.o=.d) libsurface.a $(TESTS) $(KEYS_TEST) libsurface.so*
 	rm -f $(DOBJS) $(DOBJS:.o=.d) libsurface-diginet.a libsurface-diginet.so* $(DTESTS) $(C24)
-	rm -f $(MOBJS) $(MOBJS:.o=.d) libsurface-mackie.a tests/mackie/test_mackie
+	rm -f $(MOBJS) $(MOBJS:.o=.d) libsurface-mackie.a libsurface-mackie.so* tests/mackie/test_mackie
 	rm -rf build
 
-.PHONY: all diginet test test-diginet shared shared-diginet install install-common install-shared clean
+.PHONY: all diginet mackie test test-diginet test-mackie shared shared-diginet shared-mackie install install-common install-shared clean

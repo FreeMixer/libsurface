@@ -36,9 +36,13 @@ static unsigned wire_strip(const struct surface_mackie *m, unsigned strip)
 	return strip >= surface_geometry_of(m->s)->strips ? MACKIE_STRIPS : strip;
 }
 
-static unsigned core_strip(const struct surface_mackie *m, unsigned wire)
+/* A wire channel as the core's strip; -1 for a channel past a narrower surface's last strip. */
+static int core_strip(const struct surface_mackie *m, unsigned wire)
 {
-	return wire >= MACKIE_STRIPS ? surface_geometry_of(m->s)->strips : wire;
+	unsigned strips = surface_geometry_of(m->s)->strips;
+	if (wire >= MACKIE_STRIPS)
+		return (int)strips;
+	return wire < strips ? (int)wire : -1;
 }
 
 /* ---- The backend: libsurface's element writes in MCU encodings ---------------------------- */
@@ -134,13 +138,12 @@ static int op_counter(void *b, const char *text)
 static int op_colour(void *b, const uint8_t *per_strip, size_t n)
 {
 	struct surface_mackie *m = b;
-	unsigned c[MACKIE_STRIPS];
-	if (n > MACKIE_STRIPS)
-		n = MACKIE_STRIPS;
-	for (size_t i = 0; i < n; i++)
+	/* the message always carries eight: a strip past a narrower surface's last is off (index 0) */
+	unsigned c[MACKIE_STRIPS] = { 0 };
+	for (size_t i = 0; i < n && i < MACKIE_STRIPS; i++)
 		c[i] = per_strip[i];
 	struct mackie_msg msg;
-	int rc = mackie_scribble_colours_encode(c, n, m->model, &msg);
+	int rc = mackie_scribble_colours_encode(c, MACKIE_STRIPS, m->model, &msg);
 	return rc < 0 ? SURFACE_E_ARG : send(m, &msg);
 }
 
@@ -300,17 +303,24 @@ int surface_mackie_input(struct surface_mackie *m, const uint8_t *msg, size_t le
 		struct mackie_fader f;
 		if (mackie_fader_decode(m->map, msg, len, &f) < 0)
 			return 0;
-		surface_in_fader(m->s, core_strip(m, f.channel), f.value, now_us);
+		int strip = core_strip(m, f.channel);
+		if (strip < 0)
+			return 0;
+		surface_in_fader(m->s, (unsigned)strip, f.value, now_us);
 		return 1;
 	}
 	if (status == MACKIE_NOTE_ON || status == MACKIE_NOTE_OFF) {
 		struct mackie_button btn;
 		if (mackie_button_decode(m->map, msg, len, &btn) < 0)
 			return 0;
-		if (btn.kind == MACKIE_BTN_FADER_TOUCH)
-			surface_in_touch(m->s, core_strip(m, (unsigned)btn.strip), btn.pressed, now_us);
-		else
+		if (btn.kind == MACKIE_BTN_FADER_TOUCH) {
+			int strip = core_strip(m, (unsigned)btn.strip);
+			if (strip < 0)
+				return 0;
+			surface_in_touch(m->s, (unsigned)strip, btn.pressed, now_us);
+		} else {
 			surface_in_key(m->s, msg[1], btn.pressed, now_us);
+		}
 		return 1;
 	}
 	if (status == MACKIE_CONTROL_CHANGE) {

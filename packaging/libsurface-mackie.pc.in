@@ -1,0 +1,10 @@
+prefix=@PREFIX@
+libdir=@LIBDIR@
+includedir=@INCDIR@
+
+Name: libsurface-mackie
+Description: libsurface's Mackie module: an MCU surface such as the X-Touch under libsurface, over libmackie
+Version: @VERSION@
+Requires: libsurface libmackie
+Libs: -L${libdir} -lsurface-mackie
+Cflags: -I${includedir}

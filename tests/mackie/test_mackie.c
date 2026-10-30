@@ -189,8 +189,167 @@ static void test_elements_go_out_in_mcu_encodings(void)
 	surface_mackie_close(r.m);
 }
 
+static int open_rig_strips(struct rig *r, uint8_t strips)
+{
+	memset(r, 0, sizeof *r);
+	r->now = 1000 * MS;
+	struct surface_mackie_config c = { .map = &MAP, .model = MACKIE_MODEL_MCU, .geometry = SURFACE_MODEL_XTOUCH, .strips = strips,
+					   .write = on_write, .write_ctx = r, .event = on_event, .event_ctx = r };
+	return surface_mackie_open(&r->m, &c, &r->s);
+}
+
+static int count_ev(const struct rig *r, enum surface_event_kind k)
+{
+	int n = 0;
+	for (int i = 0; i < r->nev; i++)
+		n += r->ev[i].kind == k;
+	return n;
+}
+
+static int fader_writes(const struct rig *r, int from, unsigned wire)
+{
+	int n = 0;
+	for (int i = from; i < r->n; i++)
+		n += r->wire[i][0] == (0xe0 | wire);
+	return n;
+}
+
+static void bend(struct rig *r, unsigned wire, unsigned value)
+{
+	const uint8_t m[] = { (uint8_t)(0xe0 | wire), value & 0x7f, (value >> 7) & 0x7f };
+	surface_mackie_input(r->m, m, sizeof m, r->now);
+}
+
+static void touch(struct rig *r, unsigned note, int on)
+{
+	const uint8_t m[] = { 0x90, (uint8_t)note, on ? 0x7f : 0 };
+	surface_mackie_input(r->m, m, sizeof m, r->now);
+}
+
+/* A meter goes out in LEDs: six segments are the nibble 6, as libmackie's golden has it. */
+static void test_meter_goes_out_in_segments(void)
+{
+	struct rig r;
+	CHK(open_rig(&r) == SURFACE_OK);
+	handshake(&r);
+	int from = r.n;
+	CHK(surface_meter(r.s, 2, 0, 0.5, r.now) == 1);
+	const uint8_t six[] = { 0xd0, 0x20 | 6 };
+	CHK(wrote(&r, from, six, 2));
+	/* the overload LED is its own message and leaves the level alone */
+	CHK(surface_mackie_clip(r.m, 2, 1) == 1);
+	const uint8_t lit[] = { 0xd0, 0x20 | 0x0e };
+	CHK(wrote(&r, from, lit, 2));
+	CHK(surface_mackie_clip(r.m, 2, 0) == 1);
+	const uint8_t clear[] = { 0xd0, 0x20 | 0x0f };
+	CHK(wrote(&r, from, clear, 2));
+	/* the keep-alive and the reset of the hold: the same level again is silent, until it is owed */
+	r.now += 10 * MS;
+	int before = r.n;
+	CHK(surface_meter(r.s, 2, 0, 0.5, r.now) == 0);
+	surface_meters_reset(r.s);
+	CHK(surface_meter(r.s, 2, 0, 0.5, r.now) == 1 && r.n == before + 1);
+	surface_mackie_close(r.m);
+}
+
+/* The master sits on channel 8 and its touch note whatever the width; a channel past a narrower
+ * surface's last strip is nobody's. */
+static void test_a_narrow_surface_keeps_its_master_on_channel_8(void)
+{
+	struct rig r;
+	CHK(open_rig_strips(&r, 4) == SURFACE_OK);
+	surface_target t[] = { 11, 12, 13, 14 };
+	surface_bank_set(r.s, t, 4);
+	surface_master_set(r.s, 99);
+	handshake(&r);
+	int from = r.n;
+	surface_fader_served(r.s, 99, 1.0, r.now);
+	const uint8_t top[] = { 0xe8, 0x7f, 0x7f };
+	CHK(wrote(&r, from, top, 3));
+	CHK(fader_writes(&r, from, 4) == 0);
+	r.nev = 0;
+	touch(&r, 112, 1);              /* the master's touch */
+	CHK(count_ev(&r, SURFACE_EV_FADER_TOUCHED) == 1 && r.ev[0].strip == 4 && r.ev[0].target == 99);
+	touch(&r, 106, 1);              /* wire strip 3 is on the surface */
+	CHK(count_ev(&r, SURFACE_EV_FADER_TOUCHED) == 2);
+	const uint8_t off[] = { 0x90, 108, 0x7f }, past[] = { 0xe6, 0, 0x40 };
+	CHK(surface_mackie_input(r.m, off, 3, r.now) == 0);
+	CHK(surface_mackie_input(r.m, past, 3, r.now) == 0);
+	/* the eight-colour message stays eight */
+	uint8_t c[] = { 1, 2, 3, 4 };
+	from = r.n;
+	CHK(surface_colour(r.s, c, 4) == 1);
+	const uint8_t want[] = { 0xf0, 0, 0, 0x66, 0x14, 0x72, 1, 2, 3, 4, 0, 0, 0, 0, 0xf7 };
+	CHK(wrote(&r, from, want, sizeof want));
+	surface_mackie_close(r.m);
+}
+
+/* The motor, through MIDI bytes both ways: a hand on the cap writes nothing until it lets go, once. */
+static void test_the_motor_never_fights_the_hand(void)
+{
+	struct rig r;
+	CHK(open_rig(&r) == SURFACE_OK);
+	surface_target t[] = { 11 };
+	surface_bank_set(r.s, t, 1);
+	handshake(&r);
+	int from = r.n;
+	touch(&r, 104, 1);
+	bend(&r, 0, 4000);
+	bend(&r, 0, 8000);
+	surface_fader_served(r.s, 11, 0.1, r.now);      /* a lagging echo under the hand */
+	CHK(fader_writes(&r, from, 0) == 0);
+	touch(&r, 104, 0);
+	CHK(fader_writes(&r, from, 0) == 1);
+	const uint8_t rest[] = { 0xe0, 8000 & 0x7f, 8000 >> 7 };
+	CHK(wrote(&r, from, rest, 3));
+	/* the motor's report of that write is no gesture */
+	r.nev = 0;
+	CHK(surface_fader_is_report(r.s, 0, 8000, r.now) == 1);
+	CHK(surface_fader_is_report(r.s, 0, 4000, r.now) == 0);
+	bend(&r, 0, 8000);
+	CHK(count_ev(&r, SURFACE_EV_FADER_MOVED) == 0);
+	/* a touch that never lifts lapses on its own, and a reset clears it at once */
+	touch(&r, 104, 1);
+	CHK(surface_fader_is_report(r.s, 0, 8000, r.now) == 0);
+	surface_touch_reset(r.s);
+	CHK(surface_fader_is_report(r.s, 0, 8000, r.now) == 1);
+	surface_mackie_close(r.m);
+}
+
+/* A strip painted on its own, and a target under a layer: its moves go up and move no motor. */
+static void test_a_layer_keeps_the_motor_state_out(void)
+{
+	struct rig r;
+	CHK(open_rig(&r) == SURFACE_OK);
+	surface_target t[] = { 11 };
+	surface_bank_set(r.s, t, 1);
+	handshake(&r);
+	int from = r.n;
+	surface_fader_paint_strip(r.s, 0, 0.5, r.now);
+	CHK(fader_writes(&r, from, 0) == 1);
+	surface_fader_suspend(r.s, 11, 1);
+	from = r.n;
+	r.nev = 0;
+	touch(&r, 104, 1);
+	bend(&r, 0, 2000);
+	touch(&r, 104, 0);
+	r.now += 2000 * MS;
+	surface_tick(r.s, r.now);
+	CHK(count_ev(&r, SURFACE_EV_FADER_MOVED) == 1 && count_ev(&r, SURFACE_EV_FADER_RELEASED) == 1);
+	CHK(fader_writes(&r, from, 0) == 0);
+	/* leaving the layer: no echo guard was left behind, the next served value drives the cap */
+	surface_fader_suspend(r.s, 11, 0);
+	surface_fader_served(r.s, 11, 0.9, r.now);
+	CHK(fader_writes(&r, from, 0) == 1);
+	surface_mackie_close(r.m);
+}
+
 int main(void)
 {
+	test_meter_goes_out_in_segments();
+	test_a_narrow_surface_keeps_its_master_on_channel_8();
+	test_the_motor_never_fights_the_hand();
+	test_a_layer_keeps_the_motor_state_out();
 	test_handshake_brings_it_online_and_replays_the_board();
 	test_inputs_become_the_cores_events();
 	test_elements_go_out_in_mcu_encodings();

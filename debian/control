@@ -2,7 +2,7 @@ Source: libsurface
 Section: libs
 Priority: optional
 Maintainer: Pau Aliagas <linuxnow@gmail.com>
-Build-Depends: debhelper-compat (= 13), git, pkgconf, libdiginet-dev (>= 0.1.2)
+Build-Depends: debhelper-compat (= 13), git, pkgconf, libdiginet-dev (>= 0.1.2), libmackie-dev (>= 0.1.0)
 Standards-Version: 4.6.2
 Homepage: https://github.com/FreeMixer/libsurface
 Rules-Requires-Root: no
@@ -47,6 +47,25 @@ Depends: libsurface-diginet0 (= ${binary:Version}), libsurface-dev (= ${binary:V
 Description: Digidesign Control|24 under libsurface, development files
  The header and the pkg-config file libsurface-diginet, for building a host
  that drives a Control|24 through libsurface.
+
+Package: libsurface-mackie0
+Architecture: any
+Multi-Arch: same
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: MCU surface such as the Behringer X-Touch under libsurface
+ libsurface-mackie is libsurface's Mackie module: one surface per MCU device,
+ the X-Touch's geometry, touch from the touch notes and the host-connection
+ handshake, driven by libsurface's device behaviour with libmackie as its codec.
+ The MIDI transport stays the host's.
+
+Package: libsurface-mackie-dev
+Section: libdevel
+Architecture: any
+Multi-Arch: same
+Depends: libsurface-mackie0 (= ${binary:Version}), libsurface-dev (= ${binary:Version}), libmackie-dev (>= 0.1.0), ${misc:Depends}
+Description: MCU surface under libsurface, development files
+ The header and the pkg-config file libsurface-mackie, for building a host that
+ drives an MCU surface through libsurface.
 
 Package: surface-c24
 Section: sound

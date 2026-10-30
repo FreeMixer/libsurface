@@ -9,9 +9,9 @@ name: release
 #
 # Either way, the core's packages the run built are then installed in clean containers of every
 # release and architecture, and a consumer is built against the development package
-# (tests/package-check.sh). The DigiNet module's packages need libdiginet 0.1.2 or later, which
-# the build takes from the FreeMixer channel (channel-deps), and the shared workflows install
-# them against that channel.
+# (tests/package-check.sh). The DigiNet module's packages need libdiginet 0.1.2 or later and the
+# Mackie module's libmackie 0.1.0 or later, which the build takes from the FreeMixer channel
+# (channel-deps), and the shared workflows install them against that channel.
 
 on:
   push:
@@ -29,7 +29,7 @@ jobs:
     uses: FreeMixer/.github/.github/workflows/build-rpm.yml@v1
     with:
       package-name: libsurface
-      binary-names: libsurface libsurface-devel libsurface-diginet libsurface-diginet-devel surface-c24
+      binary-names: libsurface libsurface-devel libsurface-diginet libsurface-diginet-devel libsurface-mackie libsurface-mackie-devel surface-c24
       publish: ${{ github.ref_type == 'tag' }}
       needs-mod-host: false
       # libdiginet-devel with the desk mux, for the DigiNet module
@@ -45,10 +45,10 @@ jobs:
     uses: FreeMixer/.github/.github/workflows/build-deb.yml@v1
     with:
       package-name: libsurface
-      binary-names: libsurface0 libsurface-dev libsurface-diginet0 libsurface-diginet-dev surface-c24
+      binary-names: libsurface0 libsurface-dev libsurface-diginet0 libsurface-diginet-dev libsurface-mackie0 libsurface-mackie-dev surface-c24
       publish: ${{ github.ref_type == 'tag' }}
       dependencies: ''
-      requires: 'libdiginet-transport0'
+      requires: 'libdiginet-transport0 libmackie0'
       # libdiginet-dev with the desk mux, for the DigiNet module
       channel-deps: true
     secrets: inherit
