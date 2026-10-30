@@ -49,7 +49,7 @@ The script checks: `constants-check.sh` (each timing constant declared once, in 
 ## The DigiNet module
 
 `libsurface-diginet` and `tools/surface-c24` need libdiginet with the desk mux
-(`diginet/transport/diginet_mux.h`, libdiginet 0.1.2 and later). `DIGINET` says what to do:
+(`diginet/transport/diginet_mux.h`, libdiginet 0.1.4 and later). `DIGINET` says what to do:
 
 ```
 make                                   # DIGINET=auto: the module when libdiginet is found, else a SKIP line

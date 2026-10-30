@@ -8,7 +8,7 @@
 %bcond_without diginet
 %bcond_without mackie
 Name:           libsurface
-Version:        0.1.0
+Version:        0.2.0
 # The soname's major. rpm derives this package's provides and every consumer's requires from it.
 # It copies SURFACE_ABI of include/surface/surface.h, and tests/conformance-packaging.sh (in make
 # test) refuses a copy that disagrees.
@@ -30,8 +30,8 @@ BuildRequires:  make
 BuildRequires:  git-core
 BuildRequires:  pkgconf-pkg-config
 %if %{with diginet}
-# the desk mux (diginet/transport/diginet_mux.h) is in libdiginet from 0.1.2
-BuildRequires:  pkgconfig(libdiginet-transport) >= 0.1.2
+# the desk mux (diginet/transport/diginet_mux.h) is in libdiginet from 0.1.4
+BuildRequires:  pkgconfig(libdiginet-transport) >= 0.1.4
 %endif
 %if %{with mackie}
 BuildRequires:  pkgconfig(libmackie) >= 0.1.0
@@ -56,8 +56,8 @@ on libsurface.
 %package -n libsurface-diginet
 Summary:        A Digidesign Control|24 under libsurface, over DigiNet
 Requires:       %{name}%{?_isa} = %{version}-%{release}
-# the soname alone does not say it: the desk mux is in libdiginet from 0.1.2
-Requires:       libdiginet%{?_isa} >= 0.1.2
+# the soname alone does not say it: the desk mux is in libdiginet from 0.1.4
+Requires:       libdiginet%{?_isa} >= 0.1.4
 
 %description -n libsurface-diginet
 libsurface-diginet is libsurface's DigiNet module: a Digidesign Control|24 driven by libsurface's
@@ -169,6 +169,19 @@ make CFLAGS="%{optflags}" %{mkflags} test
 %endif
 
 %changelog
+* Fri Oct 30 2026 Pau Aliagas <linuxnow@gmail.com> - 0.2.0-1
+- The Mackie module, libsurface-mackie: an MCU surface such as the X-Touch
+  under libsurface over libmackie, the MIDI transport the host's. The
+  handshake brings the surface online and replays the board and the
+  assignment display.
+- The core gains surface_ring_code() with its optional ring_code op,
+  surface_fader_paint_strip(), surface_fader_is_report(),
+  surface_touch_reset() and surface_meters_reset(). A suspended target's
+  cap moves go up and leave the motor state alone, and its release drives
+  nothing.
+- The Control|24 tests follow libdiginet 0.1.4: ONLINE on the a0, ONLINE
+  again on the first e1, one board replay after it. libdiginet 0.1.4 is
+  now the floor.
 * Thu Oct 29 2026 Pau Aliagas <linuxnow@gmail.com> - 0.1.0-1
 - First release: the device behaviour core, ported from a TypeScript
   X-Touch driver with its tests. The motor-fader policy (touch flag plus

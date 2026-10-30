@@ -8,7 +8,7 @@ The design is [FreeMixer/libdiginet#29](https://github.com/FreeMixer/libdiginet/
 |---|---|---|---|
 | core | `libsurface` | `libsurface`, `libsurface-devel` (deb: `libsurface0`, `libsurface-dev`) | libc, libm |
 | Mackie Control: the X-Touch | `libsurface-mackie` | `libsurface-mackie`, `libsurface-mackie-devel` (deb: `libsurface-mackie0`, `libsurface-mackie-dev`) | [libmackie](https://github.com/FreeMixer/libmackie) 0.1.0 or later |
-| DigiNet: the Control\|24 | `libsurface-diginet` | `libsurface-diginet`, `libsurface-diginet-devel`, `surface-c24` (deb: `libsurface-diginet0`, `libsurface-diginet-dev`, `surface-c24`) | [libdiginet](https://github.com/FreeMixer/libdiginet) 0.1.2 or later |
+| DigiNet: the Control\|24 | `libsurface-diginet` | `libsurface-diginet`, `libsurface-diginet-devel`, `surface-c24` (deb: `libsurface-diginet0`, `libsurface-diginet-dev`, `surface-c24`) | [libdiginet](https://github.com/FreeMixer/libdiginet) 0.1.4 or later |
 
 The protocol libraries stay independent and never depend on libsurface. The X-Touch module (over libmackie) and the Python binding come in later phases.
 

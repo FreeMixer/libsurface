@@ -1,3 +1,20 @@
+libsurface (0.2.0) unstable; urgency=medium
+
+  * The Mackie module, libsurface-mackie: an MCU surface such as the X-Touch
+    under libsurface over libmackie, the MIDI transport the host's. The
+    handshake brings the surface online and replays the board and the
+    assignment display.
+  * The core gains surface_ring_code() with its optional ring_code op,
+    surface_fader_paint_strip(), surface_fader_is_report(),
+    surface_touch_reset() and surface_meters_reset(). A suspended target's
+    cap moves go up and leave the motor state alone, and its release drives
+    nothing.
+  * The Control|24 tests follow libdiginet 0.1.4: ONLINE on the a0, ONLINE
+    again on the first e1, one board replay after it. libdiginet 0.1.4 is
+    now the floor.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Fri, 30 Oct 2026 22:30:00 +0100
+
 libsurface (0.1.0) unstable; urgency=medium
 
   * First release: the device behaviour core, ported from a TypeScript
