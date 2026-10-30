@@ -48,7 +48,7 @@ libsurface.a: $(OBJS)
 	$(AR) rcs $@ $(OBJS)
 
 # ---- the DigiNet module (libsurface-diginet) ------------------------------------------------
-# Built when libdiginet with the desk mux (diginet/transport/diginet_mux.h, libdiginet 0.1.2 and
+# Built when libdiginet with the desk mux (diginet/transport/diginet_mux.h, libdiginet 0.1.4 and
 # later) is found: through pkg-config when it is installed, or from a built source tree with
 #   make DIGINET_SRC=../libdiginet
 # which is linked from its archives (for working on the two together, never for a package).
@@ -71,7 +71,7 @@ HAVE_DIGINET := $(shell printf '\043include <diginet/transport/diginet_mux.h>\n'
 	$(CC) $(DIGINET_CFLAGS) -E -x c - >/dev/null 2>&1 && echo yes)
 endif
 DIGINET_NONE := libdiginet with the desk mux (diginet/transport/diginet_mux.h) was not found: \
-	install libdiginet 0.1.2 or later, or set DIGINET_SRC to a built libdiginet tree
+	install libdiginet 0.1.4 or later, or set DIGINET_SRC to a built libdiginet tree
 ifeq ($(DIGINET),no)
 DIGINET_NONE := DIGINET=no
 endif

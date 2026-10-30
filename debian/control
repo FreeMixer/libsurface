@@ -2,7 +2,7 @@ Source: libsurface
 Section: libs
 Priority: optional
 Maintainer: Pau Aliagas <linuxnow@gmail.com>
-Build-Depends: debhelper-compat (= 13), git, pkgconf, libdiginet-dev (>= 0.1.2), libmackie-dev (>= 0.1.0)
+Build-Depends: debhelper-compat (= 13), git, pkgconf, libdiginet-dev (>= 0.1.4), libmackie-dev (>= 0.1.0)
 Standards-Version: 4.6.2
 Homepage: https://github.com/FreeMixer/libsurface
 Rules-Requires-Root: no
@@ -31,7 +31,7 @@ Description: device behaviour of motorised control surfaces, development files
 Package: libsurface-diginet0
 Architecture: any
 Multi-Arch: same
-Depends: ${shlibs:Depends}, ${misc:Depends}, libdiginet-transport0 (>= 0.1.2)
+Depends: ${shlibs:Depends}, ${misc:Depends}, libdiginet-transport0 (>= 0.1.4)
 Description: Digidesign Control|24 under libsurface, over DigiNet
  libsurface-diginet is libsurface's DigiNet module: a Control|24 driven by
  libsurface's device behaviour over libdiginet's desk mux. One listener hears
@@ -43,7 +43,7 @@ Package: libsurface-diginet-dev
 Section: libdevel
 Architecture: any
 Multi-Arch: same
-Depends: libsurface-diginet0 (= ${binary:Version}), libsurface-dev (= ${binary:Version}), libdiginet-dev (>= 0.1.2), ${misc:Depends}
+Depends: libsurface-diginet0 (= ${binary:Version}), libsurface-dev (= ${binary:Version}), libdiginet-dev (>= 0.1.4), ${misc:Depends}
 Description: Digidesign Control|24 under libsurface, development files
  The header and the pkg-config file libsurface-diginet, for building a host
  that drives a Control|24 through libsurface.
