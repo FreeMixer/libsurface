@@ -134,7 +134,7 @@ static inline int op_colour(void *b, const uint8_t *per_strip, size_t n)
 }
 
 static const struct surface_backend_ops FAKE_OPS = {
-	op_fader, op_led, op_ring, op_meter, op_scribble, op_counter, op_colour,
+	op_fader, op_led, op_ring, op_meter, op_scribble, op_counter, op_colour, NULL,
 };
 
 /* ---- the host ----------------------------------------------------------------------------- */

@@ -274,11 +274,24 @@ void surface_fader_refused(struct surface *s, surface_target t);
 /* A repaint of t at pos (bank move, page change): held inside an implicit-touch window,
  * else seeded and written even where the motor was last driven, never under a hand. */
 void surface_fader_paint(struct surface *s, surface_target t, double pos, uint64_t now_us);
+/* One strip's repaint, for a host that paints strip by strip (t may also sit on the master). */
+void surface_fader_paint_strip(struct surface *s, unsigned strip, double pos, uint64_t now_us);
 /* While on, served frames for t only move its target (the caps show something else, a send
- * layer); the host writes those caps with surface_strip_fader(). */
+ * layer); the host writes those caps with surface_strip_fader(). A move of a cap showing t goes up
+ * as SURFACE_EV_FADER_MOVED and leaves t's motor state alone, and a release drives nothing: what
+ * the cap carries now is the host's. */
 void surface_fader_suspend(struct surface *s, surface_target t, int on);
 /* A cap written outside the policy (a layer, a flip); skipped under a hand. */
 int  surface_strip_fader(struct surface *s, unsigned strip, double pos, uint64_t now_us);
+
+/* Whether a fader report at raw is the motor reporting where it put the cap, not a hand: what
+ * surface_in_fader() would drop. For a host that routes some moves away from the surface (a learned
+ * control) and must not take a motor report for a gesture. */
+int  surface_fader_is_report(const struct surface *s, unsigned strip, uint16_t raw, uint64_t now_us);
+
+/* No finger on any cap, whatever the flags say (a host that reconnected: a release may have been
+ * lost across the gap). surface_in_online() does this as part of the replay. */
+void surface_touch_reset(struct surface *s);
 
 /* ---- Element writes (host -> device): latest wins, kept in the board shadow ------------- */
 int surface_led(struct surface *s, uint16_t key, enum surface_led st);
@@ -288,6 +301,8 @@ int surface_ring(struct surface *s, unsigned strip, enum surface_ring_mode m, do
  * backend takes no code. The last of surface_ring() and surface_ring_code() for a strip is shown. */
 int surface_ring_code(struct surface *s, unsigned strip, uint32_t code);
 int surface_meter(struct surface *s, unsigned strip, unsigned side, double fill, uint64_t now_us);
+/* The next level paints at once, on every strip: a strip's hold belongs to what it showed. */
+void surface_meters_reset(struct surface *s);
 int surface_scribble(struct surface *s, unsigned strip, unsigned row, const char *utf8);
 int surface_counter(struct surface *s, const char *text);
 int surface_colour(struct surface *s, const uint8_t *per_strip, size_t n);

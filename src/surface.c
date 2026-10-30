@@ -247,6 +247,18 @@ void surface_note_commanded(struct surface *s, unsigned strip, uint16_t raw)
  * already settled gets nothing while an over-thrown one is tracked forward to its rest, never
  * backward. This self-write follows the hand's OWN position, so it is gated on the touch alone;
  * the implicit window governs only served -> motor drive. */
+/* A motor's report of where it put the cap is served state coming back, never a gesture: with no
+ * hand on the cap, a frame at the commanded position (within the epsilon) is that report. Only
+ * where the device reports its motor's moves at all. */
+int surface_fader_is_report(const struct surface *s, unsigned strip, uint16_t raw, uint64_t now_us)
+{
+	if (!s || strip >= surface_nstrips(s))
+		return 0;
+	const struct strip_state *st = &s->strip[strip];
+	return s->g.reports_motor_moves && !touch_held(s, strip, now_us) && st->commanded_set &&
+		abs((int)raw - (int)st->commanded) <= s->g.motor_epsilon_q;
+}
+
 void surface_in_fader(struct surface *s, unsigned strip, uint16_t raw, uint64_t now_us)
 {
 	if (!s || strip >= surface_nstrips(s))
@@ -255,11 +267,7 @@ void surface_in_fader(struct surface *s, unsigned strip, uint16_t raw, uint64_t 
 	if (raw > s->g.fader_max)
 		raw = s->g.fader_max;
 	int held = touch_held(s, strip, now_us);
-	/* A motor's report of where it put the cap is served state coming back, never a gesture:
-	 * with no hand on the cap, a frame at the commanded position (within the epsilon) is that
-	 * report. Only where the device reports its motor's moves at all. */
-	int report = s->g.reports_motor_moves && !held && st->commanded_set &&
-		abs((int)raw - (int)st->commanded) <= s->g.motor_epsilon_q;
+	int report = surface_fader_is_report(s, strip, raw, now_us);
 	st->have_report = 1;
 	st->last_raw = raw;
 	st->last_at = now_us;
@@ -268,12 +276,15 @@ void surface_in_fader(struct surface *s, unsigned strip, uint16_t raw, uint64_t 
 	surface_target t = surface_strip_target(s, strip);
 	double pos = (double)raw / s->g.fader_max;
 	struct fader_state *f = motor_state(s, t);
-	if (f)
+	int suspended = f && f->suspended;
+	if (f && !suspended)
 		motor_moved(s, f, pos, now_us);
 	struct surface_event ev = {
 		.kind = SURFACE_EV_FADER_MOVED, .strip = (uint8_t)strip, .target = t, .position = pos,
 	};
 	surface_emit(s, &ev);
+	if (suspended)
+		return;   /* the cap carries a layer: the host holds what it means */
 	if (s->g.holds_setpoint && held) {
 		setpoint_echo(s, strip, raw);
 		return;
@@ -457,16 +468,22 @@ int surface_blank_strip(struct surface *s, unsigned strip)
  *     window is not driven, the rest are written even where the motor was last driven, because
  *     the device may have moved them;
  *  4. SURFACE_EV_ONLINE goes up after the replay. */
+void surface_touch_reset(struct surface *s)
+{
+	if (!s)
+		return;
+	for (unsigned k = 0; k < surface_nstrips(s); k++) {
+		s->strip[k].touch = 0;
+		s->strip[k].release_pending = 0;
+	}
+}
+
 void surface_in_online(struct surface *s, uint64_t now_us)
 {
 	if (!s)
 		return;
 	s->online = 1;
-	for (unsigned k = 0; k < surface_nstrips(s); k++) {
-		struct strip_state *st = &s->strip[k];
-		st->touch = 0;
-		st->release_pending = 0;
-	}
+	surface_touch_reset(s);
 	meters_reset(s);
 	for (size_t i = 0; i < s->ledcap; i++)
 		if (s->leds[i].used)

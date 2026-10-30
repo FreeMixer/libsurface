@@ -30,13 +30,24 @@ static int send(struct surface_mackie *m, const struct mackie_msg *msg)
 	return rc < 0 ? rc : 1;
 }
 
+/* The master fader sits on pitch-bend channel 8 and touch note 8 of the map, whatever the width. */
+static unsigned wire_strip(const struct surface_mackie *m, unsigned strip)
+{
+	return strip >= surface_geometry_of(m->s)->strips ? MACKIE_STRIPS : strip;
+}
+
+static unsigned core_strip(const struct surface_mackie *m, unsigned wire)
+{
+	return wire >= MACKIE_STRIPS ? surface_geometry_of(m->s)->strips : wire;
+}
+
 /* ---- The backend: libsurface's element writes in MCU encodings ---------------------------- */
 
 static int op_fader(void *b, unsigned strip, uint16_t raw)
 {
 	struct surface_mackie *m = b;
 	struct mackie_msg msg;
-	int rc = mackie_fader_encode14(strip, raw, &msg);
+	int rc = mackie_fader_encode14(wire_strip(m, strip), raw, &msg);
 	return rc < 0 ? SURFACE_E_ARG : send(m, &msg);
 }
 
@@ -90,7 +101,7 @@ static int op_meter(void *b, unsigned strip, unsigned side, unsigned segments)
 	struct mackie_msg msg;
 	if (side != 0)
 		return 0;
-	int rc = mackie_meter_encode(strip, (double)segments / MACKIE_METER_SEGMENTS, MACKIE_OVERLOAD_NONE, &msg);
+	int rc = mackie_meter_encode(strip, (double)segments, MACKIE_OVERLOAD_NONE, &msg);
 	return rc < 0 ? SURFACE_E_ARG : send(m, &msg);
 }
 
@@ -218,6 +229,23 @@ int surface_mackie_assignment(struct surface_mackie *m, const char *text)
 	return surface_online(m->s) ? assignment_write(m) : 0;
 }
 
+int surface_mackie_clip(struct surface_mackie *m, unsigned strip, int clipped)
+{
+	struct mackie_msg msg;
+	if (!m || strip >= MACKIE_STRIPS ||
+	    mackie_meter_encode(strip, 0, clipped ? MACKIE_OVERLOAD_SET : MACKIE_OVERLOAD_CLEAR, &msg) < 0)
+		return SURFACE_E_ARG;
+	return send(m, &msg);
+}
+
+int surface_mackie_reset(struct surface_mackie *m)
+{
+	struct mackie_msg msg;
+	if (!m || mackie_reset_encode(m->model, &msg) < 0)
+		return SURFACE_E_ARG;
+	return send(m, &msg);
+}
+
 void surface_mackie_online(struct surface_mackie *m, uint64_t now_us)
 {
 	if (!m)
@@ -272,7 +300,7 @@ int surface_mackie_input(struct surface_mackie *m, const uint8_t *msg, size_t le
 		struct mackie_fader f;
 		if (mackie_fader_decode(m->map, msg, len, &f) < 0)
 			return 0;
-		surface_in_fader(m->s, f.channel, f.value, now_us);
+		surface_in_fader(m->s, core_strip(m, f.channel), f.value, now_us);
 		return 1;
 	}
 	if (status == MACKIE_NOTE_ON || status == MACKIE_NOTE_OFF) {
@@ -280,7 +308,7 @@ int surface_mackie_input(struct surface_mackie *m, const uint8_t *msg, size_t le
 		if (mackie_button_decode(m->map, msg, len, &btn) < 0)
 			return 0;
 		if (btn.kind == MACKIE_BTN_FADER_TOUCH)
-			surface_in_touch(m->s, (unsigned)btn.strip, btn.pressed, now_us);
+			surface_in_touch(m->s, core_strip(m, (unsigned)btn.strip), btn.pressed, now_us);
 		else
 			surface_in_key(m->s, msg[1], btn.pressed, now_us);
 		return 1;

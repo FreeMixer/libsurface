@@ -65,6 +65,13 @@ int  surface_mackie_input(struct surface_mackie *m, const uint8_t *msg, size_t l
 /* The two-character assignment display; kept and replayed on every online. */
 int  surface_mackie_assignment(struct surface_mackie *m, const char *text);
 
+/* The strip's overload LED, lit or cleared: the meter's channel-pressure message with its own
+ * nibble, so it never races a level. */
+int  surface_mackie_clip(struct surface_mackie *m, unsigned strip, int clipped);
+
+/* The device reset (clears the LCD and every LED). The shadow stays: online replays it. */
+int  surface_mackie_reset(struct surface_mackie *m);
+
 /* An MCU ring's code for surface_ring_code(): mode, position 0..11 (0 dark), centre LED. */
 uint32_t surface_mackie_ring_code(enum mackie_ring_mode mode, unsigned position, int centre);
 
