@@ -118,6 +118,7 @@ make CFLAGS="%{optflags}" %{mkflags} test
 
 %files -n libsurface-diginet-devel
 %{_includedir}/surface/surface_diginet.h
+%{_includedir}/surface/surface_diginet_keys.h
 %{_libdir}/libsurface-diginet.so
 %{_libdir}/pkgconfig/libsurface-diginet.pc
 
