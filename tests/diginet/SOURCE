@@ -1,6 +1,6 @@
 desk_emu.c, desk_emu.h, emu_pump.h and netns.h are libdiginet's test doubles, copied unchanged
-from https://github.com/FreeMixer/libdiginet tests/ at 7e886f33 (main, with the desk mux of
-FreeMixer/libdiginet#36). libdiginet installs no test code, and the DigiNet module's tests need
+from https://github.com/FreeMixer/libdiginet tests/ at aa650dec (main, the 0.1.3 release:
+a Control|24 announces e1 in session, FreeMixer/libdiginet#44). libdiginet installs no test code, and the DigiNet module's tests need
 its desk emulator against an installed libdiginet too. tests/diginet/emu-sync-check.sh holds the
 copies to a libdiginet tree given in DIGINET_SRC; update them together, from one libdiginet
 commit.
