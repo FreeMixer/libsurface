@@ -83,3 +83,37 @@ jobs:
         run: make DIGINET_SRC=../libdiginet DIGINET=yes test
       - name: Shared libraries
         run: make DIGINET_SRC=../libdiginet DIGINET=yes shared
+
+  # The Mackie module (libsurface-mackie) against libmackie's main.
+  mackie:
+    name: Mackie module (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['fedora:44', 'debian:bookworm', 'debian:trixie']
+    container: ${{ matrix.image }}
+    steps:
+      - name: Toolchain
+        run: |
+          if command -v dnf >/dev/null; then
+            dnf -y install gcc make git pkgconf-pkg-config diffutils python3-pyyaml
+          else
+            apt-get update && apt-get -y install --no-install-recommends gcc libc6-dev make git pkg-config ca-certificates python3-yaml
+          fi
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the public-sources gate reads every commit message
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: libmackie, built from its main
+        run: |
+          git clone --depth 1 https://github.com/FreeMixer/libmackie.git ../libmackie
+          make -C ../libmackie libmackie.a
+      - name: Build, the module required
+        run: make MACKIE_SRC=../libmackie MACKIE=yes
+      - name: Tests, the module's included
+        run: make MACKIE_SRC=../libmackie MACKIE=yes test
+      - name: Shared libraries
+        run: make MACKIE_SRC=../libmackie MACKIE=yes shared

@@ -1,0 +1,3 @@
+usr/include/surface/surface_mackie.h
+usr/lib/*/libsurface-mackie.so
+usr/lib/*/pkgconfig/libsurface-mackie.pc

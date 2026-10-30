@@ -217,7 +217,7 @@ void motor_released(struct surface *s, surface_target t, uint64_t now_us)
 	if (motor_touched(s, t, now_us))
 		return;
 	struct fader_state *f = motor_state(s, t);
-	if (!f)
+	if (!f || f->suspended)
 		return;
 	motor_drive(s, f, f->has_awaiting ? f->awaiting : f->target, now_us);
 }
@@ -289,6 +289,15 @@ void surface_fader_paint(struct surface *s, surface_target t, double pos, uint64
 		motor_paint_strip(s, (unsigned)k, t, pos, now_us);
 	if (s->g.has_master && s->master == t)
 		motor_paint_strip(s, s->g.strips, t, pos, now_us);
+}
+
+void surface_fader_paint_strip(struct surface *s, unsigned strip, double pos, uint64_t now_us)
+{
+	if (!s || strip >= surface_nstrips(s))
+		return;
+	surface_target t = surface_strip_target(s, strip);
+	if (t)
+		motor_paint_strip(s, strip, t, pos, now_us);
 }
 
 void surface_fader_suspend(struct surface *s, surface_target t, int on)

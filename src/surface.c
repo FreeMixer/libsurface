@@ -247,6 +247,18 @@ void surface_note_commanded(struct surface *s, unsigned strip, uint16_t raw)
  * already settled gets nothing while an over-thrown one is tracked forward to its rest, never
  * backward. This self-write follows the hand's OWN position, so it is gated on the touch alone;
  * the implicit window governs only served -> motor drive. */
+/* A motor's report of where it put the cap is served state coming back, never a gesture: with no
+ * hand on the cap, a frame at the commanded position (within the epsilon) is that report. Only
+ * where the device reports its motor's moves at all. */
+int surface_fader_is_report(const struct surface *s, unsigned strip, uint16_t raw, uint64_t now_us)
+{
+	if (!s || strip >= surface_nstrips(s))
+		return 0;
+	const struct strip_state *st = &s->strip[strip];
+	return s->g.reports_motor_moves && !touch_held(s, strip, now_us) && st->commanded_set &&
+		abs((int)raw - (int)st->commanded) <= s->g.motor_epsilon_q;
+}
+
 void surface_in_fader(struct surface *s, unsigned strip, uint16_t raw, uint64_t now_us)
 {
 	if (!s || strip >= surface_nstrips(s))
@@ -255,11 +267,7 @@ void surface_in_fader(struct surface *s, unsigned strip, uint16_t raw, uint64_t 
 	if (raw > s->g.fader_max)
 		raw = s->g.fader_max;
 	int held = touch_held(s, strip, now_us);
-	/* A motor's report of where it put the cap is served state coming back, never a gesture:
-	 * with no hand on the cap, a frame at the commanded position (within the epsilon) is that
-	 * report. Only where the device reports its motor's moves at all. */
-	int report = s->g.reports_motor_moves && !held && st->commanded_set &&
-		abs((int)raw - (int)st->commanded) <= s->g.motor_epsilon_q;
+	int report = surface_fader_is_report(s, strip, raw, now_us);
 	st->have_report = 1;
 	st->last_raw = raw;
 	st->last_at = now_us;
@@ -268,12 +276,15 @@ void surface_in_fader(struct surface *s, unsigned strip, uint16_t raw, uint64_t 
 	surface_target t = surface_strip_target(s, strip);
 	double pos = (double)raw / s->g.fader_max;
 	struct fader_state *f = motor_state(s, t);
-	if (f)
+	int suspended = f && f->suspended;
+	if (f && !suspended)
 		motor_moved(s, f, pos, now_us);
 	struct surface_event ev = {
 		.kind = SURFACE_EV_FADER_MOVED, .strip = (uint8_t)strip, .target = t, .position = pos,
 	};
 	surface_emit(s, &ev);
+	if (suspended)
+		return;   /* the cap carries a layer: the host holds what it means */
 	if (s->g.holds_setpoint && held) {
 		setpoint_echo(s, strip, raw);
 		return;
@@ -359,8 +370,20 @@ int surface_ring(struct surface *s, unsigned strip, enum surface_ring_mode m, do
 		return SURFACE_E_ARG;
 	struct strip_state *st = &s->strip[strip];
 	st->ring_set = 1;
+	st->ring_is_code = 0;
 	st->ring = surface_ring_mask(m, v, s->g.ring_leds);
 	return s->online ? s->ops.ring(s->backend, strip, st->ring) : 0;
+}
+
+int surface_ring_code(struct surface *s, unsigned strip, uint32_t code)
+{
+	if (!s || strip >= s->g.strips || !s->ops.ring_code)
+		return SURFACE_E_ARG;
+	struct strip_state *st = &s->strip[strip];
+	st->ring_set = 1;
+	st->ring_is_code = 1;
+	st->ring = code;
+	return s->online ? s->ops.ring_code(s->backend, strip, code) : 0;
 }
 
 /* The text as the display shows it: ASCII, one character per code point (anything else is
@@ -445,23 +468,31 @@ int surface_blank_strip(struct surface *s, unsigned strip)
  *     window is not driven, the rest are written even where the motor was last driven, because
  *     the device may have moved them;
  *  4. SURFACE_EV_ONLINE goes up after the replay. */
+void surface_touch_reset(struct surface *s)
+{
+	if (!s)
+		return;
+	for (unsigned k = 0; k < surface_nstrips(s); k++) {
+		s->strip[k].touch = 0;
+		s->strip[k].release_pending = 0;
+	}
+}
+
 void surface_in_online(struct surface *s, uint64_t now_us)
 {
 	if (!s)
 		return;
 	s->online = 1;
-	for (unsigned k = 0; k < surface_nstrips(s); k++) {
-		struct strip_state *st = &s->strip[k];
-		st->touch = 0;
-		st->release_pending = 0;
-	}
+	surface_touch_reset(s);
 	meters_reset(s);
 	for (size_t i = 0; i < s->ledcap; i++)
 		if (s->leds[i].used)
 			s->ops.led(s->backend, s->leds[i].key, (enum surface_led)s->leds[i].st);
 	for (unsigned k = 0; k < s->g.strips; k++) {
 		struct strip_state *st = &s->strip[k];
-		if (st->ring_set)
+		if (st->ring_set && st->ring_is_code)
+			s->ops.ring_code(s->backend, k, st->ring);
+		else if (st->ring_set)
 			s->ops.ring(s->backend, k, st->ring);
 		for (unsigned r = 0; r < s->g.scribble_rows; r++)
 			if (st->scribble_set[r])

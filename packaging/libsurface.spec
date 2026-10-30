@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # libsurface, the device behaviour of motorised control surfaces: the motor-fader policy, touch,
 # the bank window, the board shadow and its replay, meter steps and ring rendering; and its
-# DigiNet module, libsurface-diginet (a Control|24 over libdiginet), with surface-c24.
+# DigiNet module, libsurface-diginet (a Control|24 over libdiginet), with surface-c24; and its
+# Mackie module, libsurface-mackie (an X-Touch over libmackie).
 #
-# rpmbuild --without diginet builds the core alone.
+# rpmbuild --without diginet --without mackie builds the core alone.
 %bcond_without diginet
+%bcond_without mackie
 Name:           libsurface
 Version:        0.1.0
 # The soname's major. rpm derives this package's provides and every consumer's requires from it.
@@ -14,6 +16,8 @@ Version:        0.1.0
 # The DigiNet module's soname major: SURFACE_DIGINET_ABI of include/surface/surface_diginet.h, held
 # to this copy by the same check.
 %global dabi 0
+# The Mackie module's: SURFACE_MACKIE_ABI of include/surface/surface_mackie.h, the same way.
+%global mabi 0
 Release:        1%{?dist}
 Summary:        Motor faders, touch and banks for any motorised control surface
 
@@ -28,6 +32,9 @@ BuildRequires:  pkgconf-pkg-config
 %if %{with diginet}
 # the desk mux (diginet/transport/diginet_mux.h) is in libdiginet from 0.1.2
 BuildRequires:  pkgconfig(libdiginet-transport) >= 0.1.2
+%endif
+%if %{with mackie}
+BuildRequires:  pkgconfig(libmackie) >= 0.1.0
 %endif
 
 %description
@@ -83,10 +90,31 @@ every event, and takes writes (scribbles, LEDs, fader targets, rings) from a FIF
 %prep
 %autosetup -n %{name}-%{version}
 
+%if %{with mackie}
+%package -n libsurface-mackie
+Summary:        An MCU surface such as the Behringer X-Touch under libsurface
+
+%description -n libsurface-mackie
+libsurface-mackie is libsurface's Mackie module: one surface per MCU device, the X-Touch's geometry,
+touch from the touch notes and the host-connection handshake, driven by libsurface's device
+behaviour with libmackie as its codec. The MIDI transport stays the host's: encoded messages go to a
+write callback and received ones come in by call. It owns no port, thread or clock.
+
+%package -n libsurface-mackie-devel
+Summary:        Development files for libsurface-mackie
+Requires:       libsurface-mackie%{?_isa} = %{version}-%{release}
+Requires:       %{name}-devel%{?_isa} = %{version}-%{release}
+Requires:       pkgconfig(libmackie) >= 0.1.0
+
+%description -n libsurface-mackie-devel
+The header and the pkg-config file (libsurface-mackie) for building a host that drives an MCU
+surface through libsurface.
+%endif
+
 %build
 # DIGINET=yes: the module or a failed build, never a silent skip; DIGINET=no: the core alone.
 # SURFACE_C24_HELPER empty: surface-c24 finds diginet-packet-helper in PATH.
-%global mkflags DIGINET=%{?with_diginet:yes}%{!?with_diginet:no} SURFACE_C24_HELPER=
+%global mkflags DIGINET=%{?with_diginet:yes}%{!?with_diginet:no} MACKIE=%{?with_mackie:yes}%{!?with_mackie:no} SURFACE_C24_HELPER=
 %make_build CFLAGS="%{optflags}" LDFLAGS="%{build_ldflags}" %{mkflags} shared
 
 %install
@@ -126,6 +154,18 @@ make CFLAGS="%{optflags}" %{mkflags} test
 %license LICENSE
 %{_bindir}/surface-c24
 %{_mandir}/man1/surface-c24.1*
+%endif
+
+%if %{with mackie}
+%files -n libsurface-mackie
+%license LICENSE
+%{_libdir}/libsurface-mackie.so.%{version}
+%{_libdir}/libsurface-mackie.so.%{mabi}
+
+%files -n libsurface-mackie-devel
+%{_includedir}/surface/surface_mackie.h
+%{_libdir}/libsurface-mackie.so
+%{_libdir}/pkgconfig/libsurface-mackie.pc
 %endif
 
 %changelog

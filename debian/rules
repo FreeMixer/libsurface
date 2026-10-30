@@ -6,10 +6,11 @@ include /usr/share/dpkg/buildflags.mk
 MULTIARCH = $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 
 # The sonames' majors are SURFACE_ABI of include/surface/surface.h and SURFACE_DIGINET_ABI of
-# include/surface/surface_diginet.h; the package names libsurface0 and libsurface-diginet0 carry
-# them, and tests/conformance-packaging.sh holds each pair to each other. DIGINET=yes: the module
-# or a failed build; SURFACE_C24_HELPER empty: surface-c24 finds diginet-packet-helper in PATH.
-MKFLAGS = DIGINET=yes SURFACE_C24_HELPER=
+# include/surface/surface_diginet.h, and the Mackie module's SURFACE_MACKIE_ABI; the package names
+# libsurface0, libsurface-diginet0 and libsurface-mackie0 carry them, and
+# tests/conformance-packaging.sh holds each pair to each other. DIGINET=yes and MACKIE=yes: the
+# modules or a failed build; SURFACE_C24_HELPER empty: surface-c24 finds diginet-packet-helper in PATH.
+MKFLAGS = DIGINET=yes MACKIE=yes SURFACE_C24_HELPER=
 
 %:
 	dh $@

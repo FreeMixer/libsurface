@@ -44,6 +44,12 @@ void meters_reset(struct surface *s)
 			s->strip[k].meter_step[i] = -1;
 }
 
+void surface_meters_reset(struct surface *s)
+{
+	if (s)
+		meters_reset(s);
+}
+
 int surface_meter(struct surface *s, unsigned strip, unsigned side, double fill, uint64_t now_us)
 {
 	if (!s || strip >= s->g.strips || side >= s->g.meter_sides)

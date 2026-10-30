@@ -82,3 +82,10 @@ The module's tests, in `tests/diginet/`, run after the core's:
 - `test_install.sh`: the module installed, a consumer built through pkg-config alone;
 - `emu-sync-check.sh`: libdiginet installs no test code, so its emulator is copied into
   `tests/diginet/` (`tests/diginet/SOURCE`); this holds the copies to the `DIGINET_SRC` tree.
+
+## The Mackie module
+
+`libsurface-mackie` is built when libmackie is found: through pkg-config, or from a built tree with
+`MACKIE_SRC=../libmackie`. `MACKIE=auto` (the default) builds it when found, `MACKIE=yes` stops the
+build when not, `MACKIE=no` never builds it. `make test` runs `tests/mackie/test_mackie` when it is
+built, and says SKIP when it is not.

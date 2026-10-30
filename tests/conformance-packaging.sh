@@ -9,7 +9,9 @@
 #          package, and debian/libsurface-dev depends on that package by that name;
 #   ARM 3  SURFACE_DIGINET_ABI of surface_diginet.h (the DigiNet module) is the spec's %global
 #          dabi and the N of the libsurface-diginetN package, and debian/libsurface-diginet-dev
-#          depends on that package by that name.
+#          depends on that package by that name;
+#   ARM 4  the same for SURFACE_MACKIE_ABI of surface_mackie.h (the Mackie module), the spec's
+#          %global mabi and the libsurface-mackieN package.
 # It reads files, not git, so it also runs from a release tarball. Planted copies, one with the spec at
 # another version and one with the module's package at another soname, run first and must be
 # refused, so the check cannot pass vacuously.
@@ -54,13 +56,25 @@ check() {
 	[ -f "$t/debian/$p.install" ] || { echo "  ARM 3: debian/$p.install is missing"; bad=1; }
 	grep -q "^Depends:.* $p (= \${binary:Version})" "$t/debian/control" ||
 		{ echo "  ARM 3: libsurface-diginet-dev does not depend on $p"; bad=1; }
+
+	mabi=$(sed -n 's/^#define SURFACE_MACKIE_ABI  *\([0-9][0-9]*\)$/\1/p' "$t/include/surface/surface_mackie.h")
+	spec_mabi=$(sed -n 's/^%global mabi  *//p' "$spec")
+	deb_mabi=$(sed -n 's/^Package: libsurface-mackie\([0-9][0-9]*\)$/\1/p' "$t/debian/control")
+	[ -n "$mabi" ] || { echo "  ARM 4: could not read SURFACE_MACKIE_ABI"; return 1; }
+	[ "$spec_mabi" = "$mabi" ] || { echo "  ARM 4: the spec's mabi is $spec_mabi, SURFACE_MACKIE_ABI is $mabi"; bad=1; }
+	[ "$deb_mabi" = "$mabi" ] || { echo "  ARM 4: debian/control builds libsurface-mackie$deb_mabi, SURFACE_MACKIE_ABI is $mabi"; bad=1; }
+	p=libsurface-mackie$mabi
+	[ -f "$t/debian/$p.install" ] || { echo "  ARM 4: debian/$p.install is missing"; bad=1; }
+	grep -q "^Depends:.* $p (= \${binary:Version})" "$t/debian/control" ||
+		{ echo "  ARM 4: libsurface-mackie-dev does not depend on $p"; bad=1; }
 	return $bad
 }
 
 plant() { # dir [sed-expression file]
 	mkdir -p "$1/include/surface" "$1/packaging" "$1/debian"
 	cp "$ROOT/VERSION" "$1/"
-	cp "$ROOT/include/surface/surface.h" "$ROOT/include/surface/surface_diginet.h" "$1/include/surface/"
+	cp "$ROOT/include/surface/surface.h" "$ROOT/include/surface/surface_diginet.h" \
+	   "$ROOT/include/surface/surface_mackie.h" "$1/include/surface/"
 	cp "$ROOT/packaging/libsurface.spec" "$1/packaging/"
 	cp "$ROOT/debian/changelog" "$ROOT/debian/control" "$ROOT"/debian/*.install "$1/debian/"
 	[ $# -lt 3 ] || sed -i "$2" "$1/$3"
@@ -78,5 +92,10 @@ if check "$tmp/bad3" >/dev/null; then
 	echo "NOT A RESULT: a tree with the module packaged as libsurface-diginet9 was not refused"
 	exit 2
 fi
+plant "$tmp/bad4" 's/^Package: libsurface-mackie[0-9]*$/Package: libsurface-mackie9/' debian/control
+if check "$tmp/bad4" >/dev/null; then
+	echo "NOT A RESULT: a tree with the module packaged as libsurface-mackie9 was not refused"
+	exit 2
+fi
 check "$ROOT" || exit 1
-echo "conformance-packaging: VERSION $(cat "$ROOT/VERSION"), sonames $(sed -n 's/^#define SURFACE_ABI  *//p' "$ROOT/include/surface/surface.h") (core) and $(sed -n 's/^#define SURFACE_DIGINET_ABI  *//p' "$ROOT/include/surface/surface_diginet.h") (diginet) agree everywhere"
+echo "conformance-packaging: VERSION $(cat "$ROOT/VERSION"), sonames $(sed -n 's/^#define SURFACE_ABI  *//p' "$ROOT/include/surface/surface.h") (core) and $(sed -n 's/^#define SURFACE_DIGINET_ABI  *//p' "$ROOT/include/surface/surface_diginet.h") (diginet) and $(sed -n 's/^#define SURFACE_MACKIE_ABI  *//p' "$ROOT/include/surface/surface_mackie.h") (mackie) agree everywhere"

@@ -7,6 +7,7 @@ The design is [FreeMixer/libdiginet#29](https://github.com/FreeMixer/libdiginet/
 | Module | Library | Packages | Needs |
 |---|---|---|---|
 | core | `libsurface` | `libsurface`, `libsurface-devel` (deb: `libsurface0`, `libsurface-dev`) | libc, libm |
+| Mackie Control: the X-Touch | `libsurface-mackie` | `libsurface-mackie`, `libsurface-mackie-devel` (deb: `libsurface-mackie0`, `libsurface-mackie-dev`) | [libmackie](https://github.com/FreeMixer/libmackie) 0.1.0 or later |
 | DigiNet: the Control\|24 | `libsurface-diginet` | `libsurface-diginet`, `libsurface-diginet-devel`, `surface-c24` (deb: `libsurface-diginet0`, `libsurface-diginet-dev`, `surface-c24`) | [libdiginet](https://github.com/FreeMixer/libdiginet) 0.1.2 or later |
 
 The protocol libraries stay independent and never depend on libsurface. The X-Touch module (over libmackie) and the Python binding come in later phases.
@@ -21,6 +22,15 @@ The protocol libraries stay independent and never depend on libsurface. The X-To
 - **Meter steps** with hysteresis, sent only on a change, with a keep-alive for a surface that decays a lit meter by itself.
 
 What it is not: it speaks no wire, owns no socket, thread or clock, and knows no channel or verb. Each call that needs time takes the caller's `now_us`; `surface_deadline()` and `surface_tick()` run the timers. It allocates once, in `surface_create()`.
+
+## The Mackie module
+
+`libsurface-mackie` ([`include/surface/surface_mackie.h`](include/surface/surface_mackie.h), `src/mackie/`) drives a Mackie Control surface such as the Behringer X-Touch, with libmackie as its codec:
+
+- **The transport is the host's.** Every message the module writes goes to the host's write callback as one complete MIDI message, and the host hands over each message it receives. The module owns no port, thread or clock.
+- **The map is the host's.** The control map is a `struct mackie_map` filled from the host's own surface profile, checked whole at open.
+- **The device's own rings.** An MCU device draws a ring from mode, position and centre: `surface_ring_code()` keeps that code in the shadow and replays it as it is; a ring the core rendered comes back to the nearest code.
+- **The handshake.** The device's connection query is answered and brings the surface online, which replays the board and the assignment display.
 
 ## The DigiNet module
 
