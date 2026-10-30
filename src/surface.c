@@ -359,8 +359,20 @@ int surface_ring(struct surface *s, unsigned strip, enum surface_ring_mode m, do
 		return SURFACE_E_ARG;
 	struct strip_state *st = &s->strip[strip];
 	st->ring_set = 1;
+	st->ring_is_code = 0;
 	st->ring = surface_ring_mask(m, v, s->g.ring_leds);
 	return s->online ? s->ops.ring(s->backend, strip, st->ring) : 0;
+}
+
+int surface_ring_code(struct surface *s, unsigned strip, uint32_t code)
+{
+	if (!s || strip >= s->g.strips || !s->ops.ring_code)
+		return SURFACE_E_ARG;
+	struct strip_state *st = &s->strip[strip];
+	st->ring_set = 1;
+	st->ring_is_code = 1;
+	st->ring = code;
+	return s->online ? s->ops.ring_code(s->backend, strip, code) : 0;
 }
 
 /* The text as the display shows it: ASCII, one character per code point (anything else is
@@ -461,7 +473,9 @@ void surface_in_online(struct surface *s, uint64_t now_us)
 			s->ops.led(s->backend, s->leds[i].key, (enum surface_led)s->leds[i].st);
 	for (unsigned k = 0; k < s->g.strips; k++) {
 		struct strip_state *st = &s->strip[k];
-		if (st->ring_set)
+		if (st->ring_set && st->ring_is_code)
+			s->ops.ring_code(s->backend, k, st->ring);
+		else if (st->ring_set)
 			s->ops.ring(s->backend, k, st->ring);
 		for (unsigned r = 0; r < s->g.scribble_rows; r++)
 			if (st->scribble_set[r])

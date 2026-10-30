@@ -137,6 +137,65 @@ test-diginet:
 	@echo "SKIP: the DigiNet module's tests: $(DIGINET_NONE)"
 endif
 
+# ---- the Mackie module (libsurface-mackie): MCU surfaces such as the X-Touch, over libmackie ----
+# Built when libmackie is found: through pkg-config, or from a built tree with MACKIE_SRC=../libmackie.
+# MACKIE=auto (the default) builds it when found, MACKIE=yes stops the build when not, MACKIE=no never.
+MACKIE_SRC ?=
+ifneq ($(MACKIE_SRC),)
+MACKIE_CFLAGS := -I$(MACKIE_SRC)/include
+MACKIE_LIBS   := $(MACKIE_SRC)/libmackie.a
+else
+MACKIE_CFLAGS := $(shell pkg-config --cflags libmackie 2>/dev/null)
+MACKIE_LIBS   := $(shell pkg-config --libs libmackie 2>/dev/null)
+endif
+MACKIE ?= auto
+ifneq ($(MACKIE),no)
+HAVE_MACKIE := $(shell printf '\043include <mackie/mackie_codec.h>\n' | \
+	$(CC) $(MACKIE_CFLAGS) -E -x c - >/dev/null 2>&1 && echo yes)
+endif
+MACKIE_NONE := libmackie (mackie/mackie_codec.h) was not found: install libmackie 0.1.0 or later, or set \
+	MACKIE_SRC to a built libmackie tree
+ifeq ($(MACKIE),no)
+MACKIE_NONE := MACKIE=no
+endif
+ifeq ($(MACKIE),yes)
+ifneq ($(HAVE_MACKIE),yes)
+$(error $(MACKIE_NONE))
+endif
+endif
+
+MOBJS := src/mackie/surface_mackie.o
+MABI  := $(shell sed -n 's/^\#define SURFACE_MACKIE_ABI  *\([0-9]*\)$$/\1/p' include/surface/surface_mackie.h)
+
+src/mackie/%.o: src/mackie/%.c
+	$(CC) $(CFLAGS) $(WARN) -MMD -MP $(INC) $(MACKIE_CFLAGS) -c $< -o $@
+
+-include $(MOBJS:.o=.d)
+
+libsurface-mackie.a: $(MOBJS)
+	$(AR) rcs $@ $(MOBJS)
+
+ifeq ($(HAVE_MACKIE),yes)
+mackie: libsurface-mackie.a
+else
+mackie:
+	@echo "SKIP: the Mackie module (libsurface-mackie) not built: $(MACKIE_NONE)"
+endif
+
+all: mackie
+
+tests/mackie/test_mackie: tests/mackie/test_mackie.c tests/harness.h libsurface-mackie.a libsurface.a
+	$(CC) $(CFLAGS) $(WARN) $(INC) $(MACKIE_CFLAGS) -Itests $< libsurface-mackie.a libsurface.a \
+	    $(MACKIE_LIBS) $(LIBS) $(LDFLAGS) -o $@
+
+ifeq ($(HAVE_MACKIE),yes)
+test-mackie: tests/mackie/test_mackie
+	$(RUN_TEST) tests/mackie/test_mackie
+else
+test-mackie:
+	@echo "SKIP: the Mackie module's tests: $(MACKIE_NONE)"
+endif
+
 # the Control|24 key table is data alone: its test needs no libdiginet
 $(KEYS_TEST): tests/test_c24_keys.c src/diginet/c24_keys.c include/surface/surface_diginet_keys.h
 	$(CC) $(CFLAGS) $(WARN) $(INC) tests/test_c24_keys.c src/diginet/c24_keys.c -o $@
@@ -233,6 +292,7 @@ endif
 clean:
 	rm -f $(OBJS) $(OBJS:.o=.d) libsurface.a $(TESTS) $(KEYS_TEST) libsurface.so*
 	rm -f $(DOBJS) $(DOBJS:.o=.d) libsurface-diginet.a libsurface-diginet.so* $(DTESTS) $(C24)
+	rm -f $(MOBJS) $(MOBJS:.o=.d) libsurface-mackie.a tests/mackie/test_mackie
 	rm -rf build
 
 .PHONY: all diginet test test-diginet shared shared-diginet install install-common install-shared clean

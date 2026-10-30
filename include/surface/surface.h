@@ -221,6 +221,9 @@ struct surface_backend_ops {
 	int (*scribble)(void *b, unsigned strip, unsigned row, const char *text, size_t n);
 	int (*counter)(void *b, const char *text);
 	int (*colour)(void *b, const uint8_t *per_strip, size_t n);
+	/* A device that renders its rings itself (an MCU surface draws mode, position and centre)
+	 * takes surface_ring_code()'s code as it is. May be NULL: surface_ring_code() then refuses. */
+	int (*ring_code)(void *b, unsigned strip, uint32_t code);
 };
 
 struct surface_config {
@@ -280,6 +283,10 @@ int  surface_strip_fader(struct surface *s, unsigned strip, double pos, uint64_t
 /* ---- Element writes (host -> device): latest wins, kept in the board shadow ------------- */
 int surface_led(struct surface *s, uint16_t key, enum surface_led st);
 int surface_ring(struct surface *s, unsigned strip, enum surface_ring_mode m, double v);
+/* A ring in the device's own code (an MCU ring's mode, position and centre bit), for a device that
+ * renders its ring itself; kept in the board shadow and replayed as it is. SURFACE_E_ARG when the
+ * backend takes no code. The last of surface_ring() and surface_ring_code() for a strip is shown. */
+int surface_ring_code(struct surface *s, unsigned strip, uint32_t code);
 int surface_meter(struct surface *s, unsigned strip, unsigned side, double fill, uint64_t now_us);
 int surface_scribble(struct surface *s, unsigned strip, unsigned row, const char *utf8);
 int surface_counter(struct surface *s, const char *text);

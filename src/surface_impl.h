@@ -80,6 +80,7 @@ struct strip_state {
 	uint16_t commanded;
 	/* shadow */
 	uint8_t ring_set;
+	uint8_t ring_is_code;  /* ring is the device's code (surface_ring_code), not a mask */
 	uint32_t ring;
 	uint8_t scribble_set[SURFACE_MAX_SCRIBBLE_ROWS];
 	char scribble[SURFACE_MAX_SCRIBBLE_ROWS][SURFACE_MAX_SCRIBBLE_CHARS];
