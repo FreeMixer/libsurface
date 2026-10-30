@@ -92,7 +92,7 @@ every event, and takes writes (scribbles, LEDs, fader targets, rings) from a FIF
 %install
 # not %%make_install: it names the `install` target (the static archives) as well
 make DESTDIR=%{buildroot} PREFIX=%{_prefix} LIBDIR=%{_libdir} INCDIR=%{_includedir} \
-    BINDIR=%{_bindir} %{mkflags} install-shared
+    BINDIR=%{_bindir} MANDIR=%{_mandir} %{mkflags} install-shared
 
 %check
 make CFLAGS="%{optflags}" %{mkflags} test
@@ -124,6 +124,7 @@ make CFLAGS="%{optflags}" %{mkflags} test
 %files -n surface-c24
 %license LICENSE
 %{_bindir}/surface-c24
+%{_mandir}/man1/surface-c24.1*
 %endif
 
 %changelog
