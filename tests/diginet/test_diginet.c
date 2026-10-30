@@ -59,6 +59,8 @@ static int appeared, gone;
 #define EVMAX 4096
 static struct surface_event EV[EVMAX];
 static char EVTEXT[EVMAX][100];
+static int EV_SHOWN[EVMAX];        /* the desk was announcing e1 naming us when the event went up */
+static unsigned EV_MARK[EVMAX];    /* the desk's log position then: what it gets after is the replay */
 static int nev;
 static int echo_t[EVMAX];
 static double echo_p[EVMAX];
@@ -101,6 +103,8 @@ static void on_event(void *ctx, const struct surface_event *ev)
 		EV[nev] = *ev;
 		snprintf(EVTEXT[nev], sizeof EVTEXT[nev], "%s", ev->text ? ev->text : "");
 		EV[nev].text = EVTEXT[nev];
+		EV_SHOWN[nev] = E.shows_session;
+		EV_MARK[nev] = E.nlog;
 		nev++;
 	}
 	/* a console takes the move and serves it back, after the call that reported it */
@@ -255,6 +259,26 @@ static int count_ev(enum surface_event_kind k)
 	return n;
 }
 
+/*
+ * A Control|24 comes up in two steps (libdiginet#48): ONLINE on the a0, with no e1 from the desk yet,
+ * then ONLINE again, RENEWED, on the first e1 naming this host. The desk opened a new session on the
+ * e2 before that e1, which blanked it, so the board has to go out again after RENEWED. By value: after
+ * the event at index `from`, exactly these two ONLINEs, in that order; answers where RENEWED's replay starts.
+ */
+static unsigned online_then_renewed(int from)
+{
+	int at[3], n = 0;
+	for (int i = from; i < nev; i++)
+		if (EV[i].kind == SURFACE_EV_ONLINE && n < 3)
+			at[n++] = i;
+	CHK(n == 2);
+	if (n != 2)
+		return E.nlog;
+	CHK(EV_SHOWN[at[0]] == 0);   /* on the a0 */
+	CHK(EV_SHOWN[at[1]] == 1);   /* on the e1 */
+	return EV_MARK[at[1]];
+}
+
 static const struct surface_event *last_ev(enum surface_event_kind k)
 {
 	for (int i = nev - 1; i >= 0; i--)
@@ -324,8 +348,11 @@ T(online_replays_board)
 	surface_fader_served(SF, 8, 0.5, now);   /* strip 7 */
 	unsigned mark = E.nlog;
 	run(3 * S);
-	CHK(count_ev(SURFACE_EV_ONLINE) == 1);
-	int n = wire(mark);
+	unsigned renewed = online_then_renewed(0);
+	CHK(count_ev(SURFACE_EV_OFFLINE) == 0);
+	CHK(renewed >= mark);
+	/* what RENEWED replays: the whole shadow, once. A level is the host's next frame, not shadow. */
+	int n = wire(renewed);
 	int scrib = 0, mute = 0, solo = 0, autos = 0, ring = 0, ml = 0, mr = 0, counter = 0, fader = 0;
 	for (int i = 0; i < n; i++) {
 		const struct diginet_event *w = &W[i];
@@ -346,11 +373,15 @@ T(online_replays_board)
 		fader += w->kind == DIGINET_EV_FADER && w->strip == 7 && w->value == 512;
 	}
 	CHK(scrib == 24);
-	CHK(mute == 1 && solo == 1 && autos == 1 && ring == 1 && ml == 1 && mr == 1);
+	CHK(mute == 1 && solo == 1 && autos == 1 && ring == 1 && ml == 0 && mr == 0);
 	CHK(counter == 1);
 	CHK(fader == 1);
 	/* only the strip the host served is driven: the others' positions are unknown */
-	CHK(count_wire(mark, DIGINET_EV_FADER) == 1);
+	CHK(count_wire(renewed, DIGINET_EV_FADER) == 1);
+	/* the exact total: the board as written once on the a0's session, and that replay */
+	CHK(count_wire(mark, DIGINET_EV_FADER) == 2);
+	CHK(count_wire(mark, DIGINET_EV_SCRIBBLE) == 48);
+	CHK(count_wire(mark, DIGINET_EV_METER) == 2);
 	stop();
 }
 
@@ -529,13 +560,12 @@ T(desk_restart_repaints)
 	online();
 	surface_fader_served(SF, 3, 0.5, now);
 	run(200 * MS);
-	unsigned mark = E.nlog;
 	emu_drop_session(&E);   /* a desk reboot: the next host frame goes unanswered */
 	surface_fader_served(SF, 3, 0.6, now);
 	run(10 * S);
 	CHK(count_ev(SURFACE_EV_OFFLINE) == 1);
-	CHK(count_ev(SURFACE_EV_ONLINE) == 1);
-	CHK(scribbles_named(mark) >= 24);
+	unsigned mark = online_then_renewed(0);
+	CHK(scribbles_named(mark) == 24);
 	unsigned w[16];
 	int n = fader_writes(mark, 2, w, 16);
 	CHK(n >= 1 && w[n - 1] == 614);   /* the latest target, 0.6 */
@@ -585,14 +615,15 @@ T(gone_and_back)
 	CHK(gone == 1);
 	CHK(count_ev(SURFACE_EV_OFFLINE) == 1);
 	CHK(SF == was && !surface_online(SF));
-	unsigned mark = E.nlog;
+	unsigned back = E.nlog;
 	E.mute = 0;
 	emu_drop_session(&E);
 	run(5 * S);
 	CHK(appeared == 2);
 	CHK(SF == was);
-	CHK(count_ev(SURFACE_EV_ONLINE) == 1);
+	unsigned mark = online_then_renewed(0);
 	CHK(scribbles_named(mark) == 24);   /* the names, without the host asking */
+	CHK(scribbles_named(back) == 48);   /* the replay on the a0, and the one on RENEWED: no more */
 	stop();
 }
 
