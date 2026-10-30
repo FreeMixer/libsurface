@@ -64,7 +64,7 @@ extern "C" {
  * position: with a working touch sensor that only costs noise after release, and with a flaky
  * one it is the fight itself. The motor only ever wants the LATEST truth, so served frames
  * update the target and one trailing deadline drives it once the burst quiets. This is the
- * debouncing the operator asked for, applied on the served -> motor side; surface -> host stays
+ * debouncing asked for, applied on the served -> motor side; surface -> host stays
  * per report, because the engine riding every report is what makes the fader feel connected to
  * the sound.
  */
@@ -113,7 +113,7 @@ extern "C" {
  * The hysteresis of a stepped (LED-ladder) meter, as a fraction of ONE step: a level must move
  * past the current step's own rounding edge by this much more before the step changes, so a
  * steady source sitting on a segment edge holds one LED count instead of toggling N <-> N-1
- * every frame (operator 2026-09-25: "xtouch meters ... look like blinking").
+ * every frame (2026-09-25: X-Touch meters redrawn every frame look like blinking).
  */
 #define SURFACE_METER_STEP_HYSTERESIS 0.25
 

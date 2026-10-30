@@ -102,7 +102,7 @@ T(x5_repaint_does_not_pull_moving_cap)
 
 /* ---- the fast throw: the last value before and after touch-off wins ------------------------
  * "If you go very fast then the fader may come back midway after leaving it in a position"
- * (operator, 2026-09-25). The law: where the hand left the cap wins; the last position the
+ * (decided 2026-09-25). The law: where the hand left the cap wins; the last position the
  * surface sent, before or after touch-off, is what the host keeps and what the motor holds on
  * release; an older echo of the same gesture never becomes the target. The defect needs the host's
  * echo to LAG the gesture, so the echoes are held and released after touch-off, in a chosen
