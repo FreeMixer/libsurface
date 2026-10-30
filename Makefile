@@ -31,6 +31,7 @@ ABI     := $(shell sed -n 's/^\#define SURFACE_ABI  *\([0-9]*\)$$/\1/p' include/
 OBJS := src/surface.o src/motor.o src/bank.o src/meter.o
 
 TESTS := tests/test_motor tests/test_audit tests/test_bank tests/test_meter tests/test_c24
+KEYS_TEST := tests/test_c24_keys
 
 GOLDEN := tests/golden/meter-steps.txt
 RUN_TEST := tests/run-test.sh
@@ -80,7 +81,7 @@ $(error $(DIGINET_NONE))
 endif
 endif
 
-DOBJS := src/diginet/surface_diginet.o
+DOBJS := src/diginet/surface_diginet.o src/diginet/c24_keys.o
 DABI  := $(shell sed -n 's/^\#define SURFACE_DIGINET_ABI  *\([0-9]*\)$$/\1/p' include/surface/surface_diginet.h)
 
 src/diginet/%.o: src/diginet/%.c
@@ -136,6 +137,10 @@ test-diginet:
 	@echo "SKIP: the DigiNet module's tests: $(DIGINET_NONE)"
 endif
 
+# the Control|24 key table is data alone: its test needs no libdiginet
+$(KEYS_TEST): tests/test_c24_keys.c src/diginet/c24_keys.c include/surface/surface_diginet_keys.h
+	$(CC) $(CFLAGS) $(WARN) $(INC) tests/test_c24_keys.c src/diginet/c24_keys.c -o $@
+
 $(TESTS): tests/%: tests/%.c tests/harness.h libsurface.a
 	$(CC) $(CFLAGS) $(WARN) $(INC) $< libsurface.a $(LIBS) -o $@
 
@@ -170,12 +175,13 @@ endif
 
 shared: $(SO) shared-diginet
 
-test: $(TESTS)
+test: $(TESTS) $(KEYS_TEST)
 	$(RUN_TEST) tests/test_motor
 	$(RUN_TEST) tests/test_audit
 	$(RUN_TEST) tests/test_bank
 	$(RUN_TEST) tests/test_meter $(GOLDEN)
 	$(RUN_TEST) tests/test_c24
+	$(RUN_TEST) tests/test_c24_keys
 	$(RUN_TEST) tests/constants-check.sh
 	$(RUN_TEST) tests/test_install.sh
 	$(RUN_TEST) tests/conformance-packaging.sh
@@ -195,7 +201,7 @@ install-common:
 	install -m 644 include/surface/surface.h $(DESTDIR)$(INCDIR)/surface/
 	$(PCSED) packaging/libsurface.pc.in > $(DESTDIR)$(PCDIR)/libsurface.pc
 ifeq ($(HAVE_DIGINET),yes)
-	install -m 644 include/surface/surface_diginet.h $(DESTDIR)$(INCDIR)/surface/
+	install -m 644 include/surface/surface_diginet.h include/surface/surface_diginet_keys.h $(DESTDIR)$(INCDIR)/surface/
 	$(PCSED) packaging/libsurface-diginet.pc.in > $(DESTDIR)$(PCDIR)/libsurface-diginet.pc
 endif
 
@@ -225,7 +231,7 @@ ifeq ($(HAVE_DIGINET),yes)
 endif
 
 clean:
-	rm -f $(OBJS) $(OBJS:.o=.d) libsurface.a $(TESTS) libsurface.so*
+	rm -f $(OBJS) $(OBJS:.o=.d) libsurface.a $(TESTS) $(KEYS_TEST) libsurface.so*
 	rm -f $(DOBJS) $(DOBJS:.o=.d) libsurface-diginet.a libsurface-diginet.so* $(DTESTS) $(C24)
 	rm -rf build
 

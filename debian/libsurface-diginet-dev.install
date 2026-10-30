@@ -1,3 +1,4 @@
 usr/include/surface/surface_diginet.h
+usr/include/surface/surface_diginet_keys.h
 usr/lib/*/libsurface-diginet.so
 usr/lib/*/pkgconfig/libsurface-diginet.pc
