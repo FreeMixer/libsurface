@@ -1,0 +1,78 @@
+.\" SPDX-License-Identifier: GPL-3.0-or-later
+.\" Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+.TH SURFACE-C24 1 2026-10-30 "libsurface" "User Commands"
+.SH NAME
+surface-c24 \- drive a Digidesign Control|24 through libsurface
+.SH SYNOPSIS
+.B surface-c24
+.RB [ \-\-helper
+.IR path ]
+.RB [ \-\-fifo
+.IR path ]
+.SH DESCRIPTION
+.B surface-c24
+listens on every network interface for a Control|24's announce, attaches the first desk it
+hears, and drives it through libsurface: it labels the strips F1 to F24, mirrors each fader's
+position onto its own meter, and prints every event the desk sends (the desk appearing, going
+online or offline, fader moves, touches and releases, keys, V-Pot and jog turns, warnings).
+A fader the hand leaves stays where it was left; a new session repaints the whole desk.
+.PP
+It holds no capability of its own: the packet socket comes from
+.BR diginet-packet-helper (1),
+which opens it with
+.B cap_net_raw
+and hands it over.
+.PP
+On
+.B quit
+it writes "OFF " on every scribble strip, waits for the desk to take it, and sends the
+disconnect frame. A Control|24 that booted while other traffic flooded its link may ignore
+every host; it is reported as a warning, and a power cycle on a quiet link brings it back.
+.SH OPTIONS
+.TP
+.BI \-\-helper " path"
+The
+.B diginet-packet-helper
+to take the packet socket from. By default the one in
+.BR PATH .
+.TP
+.BI \-\-fifo " path"
+Read write commands from this FIFO, one per line; it is created when missing.
+.TP
+.B \-\-help
+Print the usage and exit.
+.SH FIFO COMMANDS
+Strips are numbered 1 to 24.
+.TP
+.BI scrib " S TEXT"
+Write up to four characters on strip
+.IR S 's
+scribble strip.
+.TP
+.BI led " NAME" : S | KEY " on" | off
+Light or clear a key's LED, by name and strip (for example
+.BR mute:1 )
+or by key number.
+.TP
+.BI fader " S POS"
+Move strip
+.IR S 's
+fader to
+.I POS
+(0 to 1) when no hand holds it.
+.TP
+.BI ring " S MASK"
+Light strip
+.IR S 's
+V-Pot ring LEDs from a 15-bit mask; bit 0 is the leftmost LED.
+.TP
+.B quit
+Write "OFF ", disconnect and exit.
+.SH EXIT STATUS
+0 on
+.BR quit ;
+1 when the packet socket cannot be had from the helper, the FIFO cannot be opened, or the
+backend does not open; 2 for a usage error.
+.SH SEE ALSO
+.BR diginet-packet-helper (1),
+.BR diginet-probe (1)

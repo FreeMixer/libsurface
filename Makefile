@@ -19,6 +19,7 @@ PREFIX  ?= /usr/local
 LIBDIR  ?= $(PREFIX)/lib
 INCDIR  ?= $(PREFIX)/include
 BINDIR  ?= $(PREFIX)/bin
+MANDIR  ?= $(PREFIX)/share/man
 PCDIR   ?= $(LIBDIR)/pkgconfig
 DESTDIR ?=
 
@@ -216,6 +217,8 @@ install-shared: shared install-common
 ifeq ($(HAVE_DIGINET),yes)
 	install -d $(DESTDIR)$(BINDIR)
 	install -m 755 build/surface-c24 $(DESTDIR)$(BINDIR)/
+	install -d $(DESTDIR)$(MANDIR)/man1
+	install -m 644 docs/surface-c24.1 $(DESTDIR)$(MANDIR)/man1/
 	install -m 755 $(DSO) $(DESTDIR)$(LIBDIR)/
 	ln -sf $(DSO) $(DESTDIR)$(LIBDIR)/libsurface-diginet.so.$(DABI)
 	ln -sf libsurface-diginet.so.$(DABI) $(DESTDIR)$(LIBDIR)/libsurface-diginet.so
