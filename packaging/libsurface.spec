@@ -8,7 +8,7 @@
 %bcond_without diginet
 %bcond_without mackie
 Name:           libsurface
-Version:        0.2.0
+Version:        0.2.1
 # The soname's major. rpm derives this package's provides and every consumer's requires from it.
 # It copies SURFACE_ABI of include/surface/surface.h, and tests/conformance-packaging.sh (in make
 # test) refuses a copy that disagrees.
@@ -169,6 +169,8 @@ make CFLAGS="%{optflags}" %{mkflags} test
 %endif
 
 %changelog
+* Sat Oct 31 2026 Pau Aliagas <linuxnow@gmail.com> - 0.2.1-1
+- A desk that returns under another name no longer crashes the host.
 * Fri Oct 30 2026 Pau Aliagas <linuxnow@gmail.com> - 0.2.0-1
 - The Mackie module, libsurface-mackie: an MCU surface such as the X-Touch
   under libsurface over libmackie, the MIDI transport the host's. The
