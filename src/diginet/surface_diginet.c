@@ -282,10 +282,14 @@ static void mux_notice(void *ctx, const struct diginet_mux_notice *n)
 			memcpy(k->mac, n->mac, DIGINET_MAC_LEN);
 		}
 		k->slot = (int)n->desk;
-		k->p = n->personality;
 		desk_info(k, n);
-		/* a desk the host kept attached through its absence gets its session back */
-		if (k->s)
+		/* The surface's ops read k->p, so a surface keeps the personality it was built for. A
+		 * desk the host kept attached through its absence gets its session back; the same MAC
+		 * announcing anything else (a name no personality has: n->personality is NULL) gets
+		 * none, and its surface waits offline until the desk itself returns. */
+		if (!k->s)
+			k->p = n->personality;
+		else if (k->info.model == DIGINET_DESK_CONTROL24)
 			diginet_mux_attach(&d->mux, n->desk, NULL);
 		d->desk(d->ctx, &k->info, 1);
 		break;
@@ -369,7 +373,7 @@ int surface_diginet_attach(struct surface_diginet *d, const uint8_t mac[6], surf
 		*out = k->s;
 		return SURFACE_OK;
 	}
-	if (!k->p || k->p->desk != DIGINET_DESK_CONTROL24)
+	if (k->info.model != DIGINET_DESK_CONTROL24)
 		return SURFACE_E_ARG;   /* a ProControl's fader packs are not known yet (Q11) */
 	struct surface_config c = { .ops = &OPS, .backend = k, .event = ev, .event_ctx = ev_ctx };
 	surface_geometry_preset(SURFACE_MODEL_CONTROL24, &c.geometry);
