@@ -27,8 +27,8 @@ extern "C" {
 
 #define SURFACE_VERSION_MAJOR  0
 #define SURFACE_VERSION_MINOR  2
-#define SURFACE_VERSION_PATCH  0
-#define SURFACE_VERSION_STRING "0.2.0"
+#define SURFACE_VERSION_PATCH  1
+#define SURFACE_VERSION_STRING "0.2.1"
 /* The soname's major: libsurface.so.SURFACE_ABI. packaging/libsurface.spec and debian/ carry
  * copies; tests/conformance-packaging.sh holds them to this, and the version to VERSION. */
 #define SURFACE_ABI            0
