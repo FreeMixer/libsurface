@@ -19,6 +19,8 @@
  *  8. DESK RESTART  a desk that drops its session is repainted when it comes back.
  *  9. HOST RESTART  a host that closes and opens again repaints the desk within 2 s.
  * 10. GONE       a silent desk goes offline and gone, and gets its session back when it returns.
+ * 11. OTHER NAME  an attached desk that comes back as something else gets no session and no
+ *                write, its surface waits offline, and the real desk's return repaints it.
  */
 #include <errno.h>
 #include <stdio.h>
@@ -55,6 +57,8 @@ static struct surface *SF;
 static uint64_t now, next_ann;
 static int auto_attach;
 static int appeared, gone;
+static const char *desk_name;      /* what on_desk expects the announce to say */
+static int desk_model;
 
 #define EVMAX 4096
 static struct surface_event EV[EVMAX];
@@ -138,8 +142,8 @@ static void on_desk(void *ctx, const struct surface_desk_info *d, int present)
 		return;
 	}
 	appeared++;
-	CHK(!strcmp(d->name, "CNTRL|24") && !strcmp(d->version, "1.08"));
-	CHK(d->model == DIGINET_DESK_CONTROL24);
+	CHK(!strcmp(d->name, desk_name) && !strcmp(d->version, "1.08"));
+	CHK(d->model == desk_model);
 	if (auto_attach) {
 		struct surface *s = NULL;
 		CHK(surface_diginet_attach(D, d->mac, on_event, NULL, &s) == SURFACE_OK && s);
@@ -198,6 +202,8 @@ static void start(void)
 	next_ann = now + MS;
 	nev = nechoes = appeared = gone = 0;
 	auto_attach = 1;
+	desk_name = "CNTRL|24";
+	desk_model = DIGINET_DESK_CONTROL24;
 	open_backend();
 }
 
@@ -627,6 +633,69 @@ T(gone_and_back)
 	stop();
 }
 
+/* ---- 11 ---------------------------------------------------------------------------------- */
+
+/* The attached desk goes silent and the same MAC comes back announcing this name. */
+static void back_as(const char *name, int model)
+{
+	int was_gone = gone, was_appeared = appeared;
+	E.mute = 1;
+	run(40 * S);
+	CHK(gone == was_gone + 1);
+	/* what emu_init derives from the name: a desk no personality describes announces its session */
+	const struct diginet_personality *p = diginet_personality_from_name(name);
+	snprintf(E.name, sizeof E.name, "%s", name);
+	E.announces_session = !p || p->announces_session;
+	E.acks_offline = p && p->desk == DIGINET_DESK_CONTROL24;
+	desk_name = name;
+	desk_model = model;
+	E.mute = 0;
+	emu_drop_session(&E);
+	run(5 * S);
+	CHK(appeared == was_appeared + 1);
+}
+
+static void other_name_waits_offline(const char *name, int model)
+{
+	online();
+	struct surface *was = SF;
+	back_as(name, model);
+	unsigned mark = E.nlog;
+	int online_events = count_ev(SURFACE_EV_ONLINE);
+	CHK(SF == was && !surface_online(SF));
+	/* every host call a console makes keeps working, and none reaches the wire */
+	CHK(surface_scribble(SF, 0, 0, "HELD") == 0);
+	surface_fader_served(SF, 1, 0.25, now);
+	CHK(surface_diginet_ring_mask(D, SF, 0, 1) == 0);
+	CHK(surface_diginet_part(D, "Bye") == 0);
+	run(5 * S);
+	CHK(!surface_online(SF));
+	CHK(count_ev(SURFACE_EV_ONLINE) == online_events);
+	CHK(E.nlog == mark);
+	/* the desk the surface was built for returns: its session, and the board as the host left it */
+	int from = nev;
+	back_as("CNTRL|24", DIGINET_DESK_CONTROL24);
+	CHK(SF == was && surface_online(SF));
+	mark = online_then_renewed(from);
+	CHK(scribbles_named(mark) == 23);   /* F2..F24: strip 0 now holds what the host set above */
+	stop();
+}
+
+T(back_under_an_unknown_name) { other_name_waits_offline("NOT|A|DK", DIGINET_DESK_UNKNOWN); }
+T(back_as_another_model) { other_name_waits_offline("MAINUNIT", DIGINET_DESK_PROCONTROL); }
+
+T(detached_while_another_name_refuses_attach)
+{
+	online();
+	back_as("NOT|A|DK", DIGINET_DESK_UNKNOWN);
+	auto_attach = 0;
+	surface_diginet_detach(D, SF, now);
+	SF = NULL;
+	struct surface *s = (struct surface *)1;
+	CHK(surface_diginet_attach(D, DESK, NULL, NULL, &s) == SURFACE_E_ARG && s == NULL);
+	stop();
+}
+
 /* ---- the API's refusals ------------------------------------------------------------------ */
 
 T(refusals)
@@ -662,6 +731,9 @@ int main(void)
 	RUN(desk_restart_repaints);
 	RUN(host_restart_repaints_in_2s);
 	RUN(gone_and_back);
+	RUN(back_under_an_unknown_name);
+	RUN(back_as_another_model);
+	RUN(detached_while_another_name_refuses_attach);
 	RUN(refusals);
 	if (fails) {
 		fprintf(stderr, "test_diginet: %d check(s) failed\n", fails);

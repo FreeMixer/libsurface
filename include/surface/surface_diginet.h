@@ -102,7 +102,10 @@ void surface_diginet_close(struct surface_diginet *d, uint64_t now_us);
 /* Attach the present desk with this MAC: a surface with the Control|24 geometry, its events to
  * ev (may be NULL), and a session that wakes the desk. *out is the desk's surface (the same one
  * when it is attached already). SURFACE_E_ARG for a MAC no present desk has, or a desk that is
- * not a Control|24; SURFACE_E_NOMEM; a negative errno from the mux. */
+ * not a Control|24; SURFACE_E_NOMEM; a negative errno from the mux. An attached desk whose MAC comes
+ * back announcing as anything but a Control|24 gets no session: the desk callback reports its model,
+ * and its surface stays offline, every call on it held, until the MAC is gone and a Control|24
+ * announces it again. */
 int surface_diginet_attach(struct surface_diginet *d, const uint8_t mac[6], surface_event_fn ev,
 			   void *ev_ctx, struct surface **out);
 
