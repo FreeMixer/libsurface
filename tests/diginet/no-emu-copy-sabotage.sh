@@ -14,7 +14,18 @@ copy=$inc/diginet/testsupport/desk_emu.h
 top=$(cd "$(dirname "$0")/../.." && pwd)
 tmp=$(mktemp -d) || exit 2
 trap 'rm -rf "$tmp"' EXIT
-(cd "$top" && git ls-files -co --exclude-standard | while read -r f; do mkdir -p "$tmp/tree/$(dirname "$f")"; cp -p "$f" "$tmp/tree/$f"; done)
+# the tree's files as no-emu-copy.sh reads them: git's list in a checkout, every file in an
+# unpacked tarball (a package build has no .git)
+cd "$top" || exit 2
+if [ -d .git ] || git rev-parse --show-toplevel 2>/dev/null | grep -qx "$(pwd -P)"; then
+	files=$(git ls-files -co --exclude-standard)
+else
+	files=$(find . -type f ! -path './.git/*' | sed 's|^\./||')
+fi
+[ -n "$files" ] || { echo "FAIL no file listed in $top"; exit 1; }
+for f in $files; do
+	mkdir -p "$tmp/tree/$(dirname "$f")" && cp -p "$f" "$tmp/tree/$f" || exit 2
+done
 sh "$top/tests/diginet/no-emu-copy.sh" "$tmp/tree" >/dev/null || { echo "FAIL the tree as it is fails no-emu-copy.sh"; exit 1; }
 cp "$copy" "$tmp/tree/tests/diginet/desk_emu.h"
 out=$(sh "$top/tests/diginet/no-emu-copy.sh" "$tmp/tree")
