@@ -43,6 +43,7 @@ surface and every host: a motor-fader policy that never fights the hand, touch w
 for a lost release and a debounce for a chattering sensor, the bank window, a shadow of the
 whole board replayed when a device comes back blank, meter steps with hysteresis, LED ring
 rendering. It speaks no wire and knows no mixing semantics: a backend encodes, a host names what each strip shows.
+Its documentation is on openmixer.org.
 
 %package devel
 Summary:        Development files for libsurface
@@ -51,6 +52,7 @@ Requires:       %{name}%{?_isa} = %{version}-%{release}
 %description devel
 The header and the pkg-config file (libsurface) for building a control-surface host or backend
 on libsurface.
+Its documentation is on openmixer.org.
 
 %if %{with diginet}
 %package -n libsurface-diginet
@@ -65,6 +67,7 @@ device behaviour over libdiginet's desk mux. One listener hears every interface 
 each desk the host attaches is a libsurface surface whose board is replayed on every new
 session, with its faders, keys, V-Pots, jog, LEDs, rings, meters, scribbles and counter mapped
 to and from the wire, and a deaf desk or one owned by another host raised as a warning.
+Its documentation is on openmixer.org.
 
 %package -n libsurface-diginet-devel
 Summary:        Development files for libsurface-diginet
@@ -74,6 +77,7 @@ Requires:       %{name}-devel%{?_isa} = %{version}-%{release}
 %description -n libsurface-diginet-devel
 The header and the pkg-config file (libsurface-diginet) for building a host that drives a
 Control|24 through libsurface.
+Its documentation is on openmixer.org.
 
 %package -n surface-c24
 Summary:        Drive a Control|24 through libsurface, with no privilege of its own
@@ -86,6 +90,7 @@ surface-c24 takes its packet socket from diginet-packet-helper, attaches the fir
 that announces on any interface, labels its strips, mirrors each fader on its meter, prints
 every event, and takes writes (scribbles, LEDs, fader targets, rings) from a FIFO.
 %endif
+Its documentation is on openmixer.org.
 
 %prep
 %autosetup -n %{name}-%{version}
@@ -99,6 +104,7 @@ libsurface-mackie is libsurface's Mackie module: one surface per MCU device, the
 touch from the touch notes and the host-connection handshake, driven by libsurface's device
 behaviour with libmackie as its codec. The MIDI transport stays the host's: encoded messages go to a
 write callback and received ones come in by call. It owns no port, thread or clock.
+Its documentation is on openmixer.org.
 
 %package -n libsurface-mackie-devel
 Summary:        Development files for libsurface-mackie
@@ -110,6 +116,7 @@ Requires:       pkgconfig(libmackie) >= 0.1.0
 The header and the pkg-config file (libsurface-mackie) for building a host that drives an MCU
 surface through libsurface.
 %endif
+Its documentation is on openmixer.org.
 
 %build
 # DIGINET=yes: the module or a failed build, never a silent skip; DIGINET=no: the core alone.
@@ -127,12 +134,10 @@ make CFLAGS="%{optflags}" %{mkflags} test
 
 %files
 %license LICENSE
-%doc README.md
 %{_libdir}/libsurface.so.%{version}
 %{_libdir}/libsurface.so.%{abi}
 
 %files devel
-%doc BUILDING.md
 %dir %{_includedir}/surface
 %{_includedir}/surface/surface.h
 %{_libdir}/libsurface.so
