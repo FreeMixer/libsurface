@@ -57,10 +57,14 @@ DIGINET_SRC ?=
 ifneq ($(DIGINET_SRC),)
 DIGINET_CFLAGS := -I$(DIGINET_SRC)/include
 DIGINET_LIBS   := $(DIGINET_SRC)/libdiginet-transport.a $(DIGINET_SRC)/libdiginet.a
+EMU_LIBS       := $(DIGINET_SRC)/libdiginet-emu.a
+EMU_INC        := $(DIGINET_SRC)/include
 DIGINET_HELPER ?= $(abspath $(DIGINET_SRC))/tools/diginet-packet-helper
 else
 DIGINET_CFLAGS := $(shell pkg-config --cflags libdiginet-transport 2>/dev/null)
 DIGINET_LIBS   := $(shell pkg-config --libs libdiginet-transport 2>/dev/null)
+EMU_LIBS       := $(shell pkg-config --libs libdiginet-emu 2>/dev/null)
+EMU_INC        := $(shell pkg-config --variable=includedir libdiginet-emu 2>/dev/null)
 DIGINET_HELPER ?= $(shell command -v diginet-packet-helper 2>/dev/null)
 endif
 # DIGINET=auto (the default) builds the module when libdiginet is found; DIGINET=yes stops the
@@ -111,27 +115,32 @@ endif
 
 all: diginet
 
-# The module's tests run on libdiginet's desk emulator, copied into tests/diginet/
-# (tests/diginet/SOURCE): libdiginet installs no test code.
-EMU    := tests/diginet/desk_emu.c
-EMU_H  := tests/diginet/desk_emu.h tests/diginet/emu_pump.h tests/diginet/netns.h
+# The module's tests run on libdiginet's desk emulator, libdiginet-emu (libdiginet 0.1.7 and
+# later install it as test support): from DIGINET_SRC, or through pkg-config.
+HAVE_DIGINET_EMU := $(shell printf '\043include <diginet/testsupport/desk_emu.h>\n' | \
+	$(CC) $(DIGINET_CFLAGS) -E -x c - >/dev/null 2>&1 && echo yes)
 DTESTS := tests/diginet/test_diginet tests/diginet/test_c24_tool
 
-tests/diginet/test_diginet: tests/diginet/test_diginet.c $(EMU) $(EMU_H) libsurface-diginet.a libsurface.a
-	$(CC) $(CFLAGS) $(WARN) $(INC) $(DIGINET_CFLAGS) -Itests/diginet $< $(EMU) \
-	    libsurface-diginet.a libsurface.a $(DIGINET_LIBS) $(LIBS) $(LDFLAGS) -o $@
+tests/diginet/test_diginet: tests/diginet/test_diginet.c libsurface-diginet.a libsurface.a
+	$(CC) $(CFLAGS) $(WARN) $(INC) $(DIGINET_CFLAGS) $< \
+	    libsurface-diginet.a libsurface.a $(EMU_LIBS) $(DIGINET_LIBS) $(LIBS) $(LDFLAGS) -o $@
 
-tests/diginet/test_c24_tool: tests/diginet/test_c24_tool.c $(EMU) $(EMU_H)
-	$(CC) $(CFLAGS) $(WARN) $(INC) $(DIGINET_CFLAGS) -Itests/diginet $< $(EMU) $(DIGINET_LIBS) \
+tests/diginet/test_c24_tool: tests/diginet/test_c24_tool.c
+	$(CC) $(CFLAGS) $(WARN) $(INC) $(DIGINET_CFLAGS) $< $(EMU_LIBS) $(DIGINET_LIBS) \
 	    $(LDFLAGS) -o $@
 
 # test_c24_tool takes the helper to run the tool with: "" (none found) is its SKIP.
 ifeq ($(HAVE_DIGINET),yes)
-test-diginet: $(DTESTS) $(C24)
+test-diginet: diginet-emu-found $(DTESTS) $(C24)
 	$(RUN_TEST) tests/diginet/test_diginet
 	$(RUN_TEST) tests/diginet/test_c24_tool "$(DIGINET_HELPER)" $(C24)
-	$(RUN_TEST) tests/diginet/emu-sync-check.sh $(DIGINET_SRC)
 	$(RUN_TEST) tests/diginet/test_install.sh "$(DIGINET_SRC)"
+	$(RUN_TEST) tests/diginet/no-emu-copy-sabotage.sh "$(EMU_INC)"
+
+# the module's tests need the emulator: a libdiginet without it is a failure, not a skip
+.PHONY: diginet-emu-found
+diginet-emu-found:
+	@[ "$(HAVE_DIGINET_EMU)" = yes ] || { echo "FAIL: libdiginet's desk emulator (diginet/testsupport/desk_emu.h, libdiginet-emu) was not found: install libdiginet 0.1.7 or later, or set DIGINET_SRC to a built libdiginet tree"; exit 1; }
 else
 test-diginet:
 	@echo "SKIP: the DigiNet module's tests: $(DIGINET_NONE)"
