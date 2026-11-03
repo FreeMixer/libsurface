@@ -266,6 +266,7 @@ test: $(TESTS) $(KEYS_TEST)
 	$(RUN_TEST) tests/test_c24_keys
 	$(RUN_TEST) tests/constants-check.sh
 	$(RUN_TEST) tests/diginet/no-emu-copy.sh
+	$(RUN_TEST) tests/diginet/test_no_emu_copy_sabotage.sh
 	$(RUN_TEST) tests/test_install.sh
 	$(RUN_TEST) tests/conformance-packaging.sh
 	$(RUN_TEST) tests/test_workflows.sh
