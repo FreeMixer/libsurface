@@ -259,10 +259,15 @@ test: $(TESTS) $(KEYS_TEST)
 	$(RUN_TEST) tests/test_install.sh
 	$(RUN_TEST) tests/conformance-packaging.sh
 	$(RUN_TEST) tests/test_workflows.sh
-	$(RUN_TEST) tests/public-sources-check.sh
-	$(RUN_TEST) tests/test_public_sources.sh
 	@$(MAKE) --no-print-directory test-diginet
 	@$(MAKE) --no-print-directory test-mackie
+
+# No tracked file points into a private repository: FreeMixer/.github's private-refs check, from a
+# checkout of it (FREEMIXER_DOTGITHUB, else ../freemixer-dotgithub). CI runs it, with the commit
+# message check, through the public-sources-check workflow; `make test` does not need it.
+FREEMIXER_DOTGITHUB ?= ../freemixer-dotgithub
+public-sources:
+	$(FREEMIXER_DOTGITHUB)/.github/actions/private-refs-check/check.sh .
 
 # The pkg-config file is written at install time, from the install's own PREFIX and LIBDIR: a
 # file kept from an earlier build would name that build's directories.
@@ -322,4 +327,4 @@ clean:
 	rm -f $(MOBJS) $(MOBJS:.o=.d) libsurface-mackie.a libsurface-mackie.so* tests/mackie/test_mackie
 	rm -rf build
 
-.PHONY: all diginet mackie test test-diginet test-mackie shared shared-diginet shared-mackie install install-common install-shared clean
+.PHONY: all diginet mackie test public-sources test-diginet test-mackie shared shared-diginet shared-mackie install install-common install-shared clean
