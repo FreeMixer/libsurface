@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_board.c:293 (return l ? rc : SURFACE_E_FULL; -> return rc;).
+Caught by the seed input "led-full" of fuzz_board.
+
+diff --git a/src/surface.c b/src/surface.c
+index 81d7b56..78f8e20 100644
+--- a/src/surface.c
++++ b/src/surface.c
+@@ -361,7 +361,7 @@ int surface_led(struct surface *s, uint16_t key, enum surface_led st)
+ 	if (l)
+ 		l->st = (uint8_t)st;
+ 	int rc = s->online ? s->ops.led(s->backend, key, st) : 0;
+-	return l ? rc : SURFACE_E_FULL;
++	return rc;
+ }
+ 
+ int surface_ring(struct surface *s, unsigned strip, enum surface_ring_mode m, double v)

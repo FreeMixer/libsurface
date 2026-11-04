@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_bank.c:198 (meters_resets; -> ).
+Caught by the seed input "meters" of fuzz_bank.
+
+diff --git a/src/bank.c b/src/bank.c
+index 9ea4dfd..8c71699 100644
+--- a/src/bank.c
++++ b/src/bank.c
+@@ -34,7 +34,7 @@ static int bank_move_by(struct surface *s, long delta)
+ 	bank_clamp(s);
+ 	if (s->offset == before)
+ 		return 0;
+-	meters_reset(s);
++	
+ 	return 1;
+ }
+ 

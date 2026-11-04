@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_motor.c:220 (return SURFACE_E_ARG; -> return SURFACE_OK;).
+Caught by the seed input "refusal" of fuzz_motor.
+
+diff --git a/src/motor.c b/src/motor.c
+index b8acb1e..db6969d 100644
+--- a/src/motor.c
++++ b/src/motor.c
+@@ -312,7 +312,7 @@ void surface_fader_suspend(struct surface *s, surface_target t, int on)
+ int surface_strip_fader(struct surface *s, unsigned strip, double pos, uint64_t now_us)
+ {
+ 	if (!s || strip >= surface_nstrips(s))
+-		return SURFACE_E_ARG;
++		return SURFACE_OK;
+ 	return motor_write_strip(s, strip, pos, now_us);
+ }
+ 

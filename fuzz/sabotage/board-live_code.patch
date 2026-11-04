@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_board.c:327 (A ring in the device's own code reaches it once, as it is).
+Caught by the seed input "ring-code" of fuzz_board.
+
+diff --git a/src/surface.c b/src/surface.c
+index 81d7b56..efdab99 100644
+--- a/src/surface.c
++++ b/src/surface.c
+@@ -383,7 +383,7 @@ int surface_ring_code(struct surface *s, unsigned strip, uint32_t code)
+ 	st->ring_set = 1;
+ 	st->ring_is_code = 1;
+ 	st->ring = code;
+-	return s->online ? s->ops.ring_code(s->backend, strip, code) : 0;
++	return s->online ? s->ops.ring_code(s->backend, strip, code & 0xff) : 0;
+ }
+ 
+ /* The text as the display shows it: ASCII, one character per code point (anything else is

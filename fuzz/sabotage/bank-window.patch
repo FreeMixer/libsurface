@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_bank.c:145 (at < 0 ? 0 : size_tat -> at < 0 ? 1 : size_tat).
+Caught by the seed input "steps" of fuzz_bank.
+
+diff --git a/src/bank.c b/src/bank.c
+index 9ea4dfd..e42df9c 100644
+--- a/src/bank.c
++++ b/src/bank.c
+@@ -30,7 +30,7 @@ static int bank_move_by(struct surface *s, long delta)
+ {
+ 	size_t before = s->offset;
+ 	long at = (long)before + delta;
+-	s->offset = at < 0 ? 0 : (size_t)at;
++	s->offset = at < 0 ? 1 : (size_t)at;
+ 	bank_clamp(s);
+ 	if (s->offset == before)
+ 		return 0;

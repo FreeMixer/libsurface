@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_bank.c:122 (return SURFACE_E_ARG; -> return SURFACE_OK;).
+Caught by the seed input "set-refusal" of fuzz_bank.
+
+diff --git a/src/bank.c b/src/bank.c
+index 9ea4dfd..23c3c0d 100644
+--- a/src/bank.c
++++ b/src/bank.c
+@@ -51,7 +51,7 @@ static long bank_index(const struct surface *s, surface_target t)
+ int surface_bank_set(struct surface *s, const surface_target *list, size_t n)
+ {
+ 	if (!s || (!list && n))
+-		return SURFACE_E_ARG;
++		return SURFACE_OK;
+ 	if (n > s->cap)
+ 		n = s->cap;
+ 	if (n)

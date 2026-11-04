@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_board.c:343 (? '?' -> ? '.').
+Caught by the seed input "scribbles" of fuzz_board.
+
+diff --git a/src/surface.c b/src/surface.c
+index 81d7b56..0408dba 100644
+--- a/src/surface.c
++++ b/src/surface.c
+@@ -394,7 +394,7 @@ static void scribble_text(char *out, unsigned n, const char *utf8)
+ 	for (const unsigned char *p = (const unsigned char *)utf8; *p && i < n; p++) {
+ 		if ((*p & 0xc0) == 0x80)
+ 			continue;   /* a continuation byte: its code point is already counted */
+-		out[i++] = *p >= 0x80 ? '?' : *p < 0x20 || *p == 0x7f ? ' ' : (char)*p;
++		out[i++] = *p >= 0x80 ? '.' : *p < 0x20 || *p == 0x7f ? ' ' : (char)*p;
+ 	}
+ 	while (i < n)
+ 		out[i++] = ' ';

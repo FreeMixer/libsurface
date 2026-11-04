@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_motor.c:138 (if raw > s->g.fader_max -> if raw > s->g.fader_max + 1).
+Caught by the seed input "report-edges" of fuzz_motor.
+
+diff --git a/src/surface.c b/src/surface.c
+index 81d7b56..f926645 100644
+--- a/src/surface.c
++++ b/src/surface.c
+@@ -264,7 +264,7 @@ void surface_in_fader(struct surface *s, unsigned strip, uint16_t raw, uint64_t
+ 	if (!s || strip >= surface_nstrips(s))
+ 		return;
+ 	struct strip_state *st = &s->strip[strip];
+-	if (raw > s->g.fader_max)
++	if (raw > s->g.fader_max + 1)
+ 		raw = s->g.fader_max;
+ 	int held = touch_held(s, strip, now_us);
+ 	int report = surface_fader_is_report(s, strip, raw, now_us);

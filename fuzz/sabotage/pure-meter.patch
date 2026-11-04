@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_pure.c:39 (v > 1 ? 1 : v -> v > 1 ? 2 : v).
+Caught by the seed input "edges" of fuzz_pure.
+
+diff --git a/src/meter.c b/src/meter.c
+index 4fe205c..13dd179 100644
+--- a/src/meter.c
++++ b/src/meter.c
+@@ -21,7 +21,7 @@ static double round_half_up(double x)
+ 
+ static double clamp01(double v)
+ {
+-	return v < 0 ? 0 : v > 1 ? 1 : v;
++	return v < 0 ? 0 : v > 1 ? 2 : v;
+ }
+ 
+ /* A display fill (0..1) -> an integer step 0..steps, with hysteresis against prev: the previous

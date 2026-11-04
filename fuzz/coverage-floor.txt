@@ -1,0 +1,7 @@
+# Covered reader lines each harness seed corpus reaches (make fuzz-coverage, fuzz/coverage.sh).
+# A harness below its floor turns fuzz-coverage red. harness covered-lines
+pure 94
+board 192
+bank 85
+motor 400
+keys 10

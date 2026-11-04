@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_motor.c:242 (.key = key, .on = pressed ? 1 : 0 -> .key = key, .on = pressed & 1).
+Caught by the seed input "passthrough" of fuzz_motor.
+
+diff --git a/src/surface.c b/src/surface.c
+index 81d7b56..130cdcc 100644
+--- a/src/surface.c
++++ b/src/surface.c
+@@ -301,7 +301,7 @@ void surface_in_key(struct surface *s, uint16_t key, int pressed, uint64_t now_u
+ 	(void)now_us;
+ 	if (!s)
+ 		return;
+-	struct surface_event ev = { .kind = SURFACE_EV_KEY, .key = key, .on = pressed ? 1 : 0 };
++	struct surface_event ev = { .kind = SURFACE_EV_KEY, .key = key, .on = pressed & 1 };
+ 	surface_emit(s, &ev);
+ }
+ 

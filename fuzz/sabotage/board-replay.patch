@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_board.c:408 (if s->leds[i].used -> if s->leds[i].used && i).
+Caught by the seed input "replay" of fuzz_board.
+
+diff --git a/src/surface.c b/src/surface.c
+index 81d7b56..f919025 100644
+--- a/src/surface.c
++++ b/src/surface.c
+@@ -487,7 +487,7 @@ void surface_in_online(struct surface *s, uint64_t now_us)
+ 	surface_touch_reset(s);
+ 	meters_reset(s);
+ 	for (size_t i = 0; i < s->ledcap; i++)
+-		if (s->leds[i].used)
++		if (s->leds[i].used && i)
+ 			s->ops.led(s->backend, s->leds[i].key, (enum surface_led)s->leds[i].st);
+ 	for (unsigned k = 0; k < s->g.strips; k++) {
+ 		struct strip_state *st = &s->strip[k];
