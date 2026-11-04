@@ -76,7 +76,7 @@ jobs:
       - name: libdiginet, built from its main
         run: |
           git clone --depth 1 https://github.com/FreeMixer/libdiginet.git ../libdiginet
-          make -C ../libdiginet libdiginet.a libdiginet-transport.a tools/diginet-packet-helper
+          make -C ../libdiginet libdiginet.a libdiginet-transport.a libdiginet-emu.a tools/diginet-packet-helper
       - name: Build, the module required
         run: make DIGINET_SRC=../libdiginet DIGINET=yes
       - name: Tests, the module's included

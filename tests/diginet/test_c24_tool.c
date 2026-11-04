@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 
-/* tools/surface-c24 end to end, in a user and network namespace of the test's own (libdiginet's
- * netns.h, copied beside this file): a veth pair hA <-> dA, libdiginet's desk emulator on dA,
+/* tools/surface-c24 end to end, in a user and network namespace of the test's own (netns.h of
+ * libdiginet-emu): a veth pair hA <-> dA, libdiginet's desk emulator on dA,
  * the tool on the real clock with its socket from diginet-packet-helper and its writes from a
  * FIFO. Nothing here touches the machine's own interfaces.
  *
@@ -20,8 +20,8 @@
 #include <sys/wait.h>
 #include <time.h>
 
-#include "netns.h"
-#include "emu_pump.h"
+#include <diginet/testsupport/netns.h>
+#include <diginet/testsupport/emu_pump.h>
 
 #include <diginet/diginet_codec.h>
 
