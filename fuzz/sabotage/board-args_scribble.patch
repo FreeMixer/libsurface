@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_board.c:118 (s->g.scribble_chars : 0; -> s->g.scribble_chars + 1 : 0;).
+Caught by the seed input "scribbles" of fuzz_board.
+
+diff --git a/src/surface.c b/src/surface.c
+index 81d7b56..d6c7cfc 100644
+--- a/src/surface.c
++++ b/src/surface.c
+@@ -407,7 +407,7 @@ int surface_scribble(struct surface *s, unsigned strip, unsigned row, const char
+ 	struct strip_state *st = &s->strip[strip];
+ 	scribble_text(st->scribble[row], s->g.scribble_chars, utf8);
+ 	st->scribble_set[row] = 1;
+-	return s->online ? s->ops.scribble(s->backend, strip, row, st->scribble[row], s->g.scribble_chars) : 0;
++	return s->online ? s->ops.scribble(s->backend, strip, row, st->scribble[row], s->g.scribble_chars + 1) : 0;
+ }
+ 
+ int surface_counter(struct surface *s, const char *text)

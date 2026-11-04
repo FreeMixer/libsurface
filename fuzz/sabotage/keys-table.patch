@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_keys.c:72 ({ 0x01, 0x18, -> { 0x00, 0x18,).
+Caught by the seed input "keys" of fuzz_keys.
+
+diff --git a/src/diginet/c24_keys.c b/src/diginet/c24_keys.c
+index 069ee55..731fea2 100644
+--- a/src/diginet/c24_keys.c
++++ b/src/diginet/c24_keys.c
+@@ -7,7 +7,7 @@
+ 
+ const struct surface_c24_key surface_c24_keys[] = {
+ 	{ 0x00, 0x18, 1, 0, "F1", "Utility" },
+-	{ 0x01, 0x18, 1, 0, "master_rec", "Misc" },
++	{ 0x00, 0x18, 1, 0, "master_rec", "Misc" },
+ 	{ 0x02, 0x18, 1, 0, "F2", "Utility" },
+ 	{ 0x03, 0x18, 1, 0, "ins_bypass", "Misc" },
+ 	{ 0x04, 0x18, 1, 0, "F3", "Utility" },

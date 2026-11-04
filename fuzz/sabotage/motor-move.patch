@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_motor.c:195 (if report -> if 0 && report).
+Caught by the seed input "report" of fuzz_motor.
+
+diff --git a/src/surface.c b/src/surface.c
+index 81d7b56..bf0ba92 100644
+--- a/src/surface.c
++++ b/src/surface.c
+@@ -271,7 +271,7 @@ void surface_in_fader(struct surface *s, unsigned strip, uint16_t raw, uint64_t
+ 	st->have_report = 1;
+ 	st->last_raw = raw;
+ 	st->last_at = now_us;
+-	if (report)
++	if (0 && report)
+ 		return;
+ 	surface_target t = surface_strip_target(s, strip);
+ 	double pos = (double)raw / s->g.fader_max;

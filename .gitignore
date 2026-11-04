@@ -14,3 +14,4 @@ __pycache__/
 !/tests/diginet/test_*.c
 !/tests/diginet/test_*.sh
 tests/mackie/test_mackie
+/fuzz/findings/

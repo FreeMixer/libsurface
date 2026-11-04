@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_motor.c:184 (if was -> if 0).
+Caught by the seed input "touches" of fuzz_motor.
+
+diff --git a/src/surface.c b/src/surface.c
+index 81d7b56..2a09ae6 100644
+--- a/src/surface.c
++++ b/src/surface.c
+@@ -198,7 +198,7 @@ void surface_in_touch(struct surface *s, unsigned strip, int on, uint64_t now_us
+ 			st->release_pending = 0;
+ 			return;
+ 		}
+-		if (was)
++		if (0)
+ 			return;   /* the sensor repeating itself while held: the deadline is refreshed */
+ 		struct surface_event ev = {
+ 			.kind = SURFACE_EV_FADER_TOUCHED, .strip = (uint8_t)strip, .on = 1,

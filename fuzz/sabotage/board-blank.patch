@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_board.c:384 (surface_scribbles, strip, r, ""; -> surface_scribbles, strip, r, "x";).
+Caught by the seed input "online-blank" of fuzz_board.
+
+diff --git a/src/surface.c b/src/surface.c
+index 81d7b56..2b16fe4 100644
+--- a/src/surface.c
++++ b/src/surface.c
+@@ -445,7 +445,7 @@ int surface_blank_strip(struct surface *s, unsigned strip)
+ 	if (!s || strip >= s->g.strips)
+ 		return SURFACE_E_ARG;
+ 	for (unsigned r = 0; r < s->g.scribble_rows; r++)
+-		surface_scribble(s, strip, r, "");
++		surface_scribble(s, strip, r, "x");
+ 	surface_ring(s, strip, SURFACE_RING_OFF, 0);
+ 	struct strip_state *st = &s->strip[strip];
+ 	for (unsigned side = 0; side < s->g.meter_sides; side++) {

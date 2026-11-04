@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_motor.c:284 (UINT64_MAX -> 0).
+Caught by the seed input "clock" of fuzz_motor.
+
+diff --git a/src/motor.c b/src/motor.c
+index b8acb1e..156eabc 100644
+--- a/src/motor.c
++++ b/src/motor.c
+@@ -340,7 +340,7 @@ void motor_tick(struct surface *s, uint64_t now_us)
+ 
+ uint64_t motor_deadline(const struct surface *s)
+ {
+-	uint64_t d = UINT64_MAX;
++	uint64_t d = 0;
+ 	for (size_t i = 0; i < s->cap; i++) {
+ 		const struct fader_state *f = &s->faders[i];
+ 		if (f->t && f->flush_armed && f->flush_at < d)

@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_board.c:281 (A device that is offline gets no call, whatever is written).
+Caught by the seed input "offline-writes" of fuzz_board.
+
+diff --git a/src/surface.c b/src/surface.c
+index 81d7b56..da9dc29 100644
+--- a/src/surface.c
++++ b/src/surface.c
+@@ -372,7 +372,7 @@ int surface_ring(struct surface *s, unsigned strip, enum surface_ring_mode m, do
+ 	st->ring_set = 1;
+ 	st->ring_is_code = 0;
+ 	st->ring = surface_ring_mask(m, v, s->g.ring_leds);
+-	return s->online ? s->ops.ring(s->backend, strip, st->ring) : 0;
++	return s->ops.ring(s->backend, strip, st->ring);
+ }
+ 
+ int surface_ring_code(struct surface *s, unsigned strip, uint32_t code)

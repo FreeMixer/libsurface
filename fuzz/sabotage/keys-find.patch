@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_keys.c:50 (section ? k->zone == id : k->zone == 0 -> section ? k->zone == id : 1).
+Caught by the seed input "table" of fuzz_keys.
+
+diff --git a/src/diginet/c24_keys.c b/src/diginet/c24_keys.c
+index 069ee55..3f05a91 100644
+--- a/src/diginet/c24_keys.c
++++ b/src/diginet/c24_keys.c
+@@ -200,7 +200,7 @@ const struct surface_c24_key *surface_c24_key_find(uint16_t key)
+ 	int section = id >= SURFACE_C24_ZONE_FIRST && id <= SURFACE_C24_ZONE_LAST;
+ 	for (size_t i = 0; i < surface_c24_nkeys; i++) {
+ 		const struct surface_c24_key *k = &surface_c24_keys[i];
+-		if (k->button == button && (section ? k->zone == id : k->zone == 0))
++		if (k->button == button && (section ? k->zone == id : 1))
+ 			return k;
+ 	}
+ 	return NULL;

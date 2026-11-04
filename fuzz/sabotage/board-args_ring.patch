@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_board.c:104 (p ? span0, p - 1 : 0 -> p ? span0, p : 0).
+Caught by the seed input "ring-full" of fuzz_board.
+
+diff --git a/src/meter.c b/src/meter.c
+index 4fe205c..510fd11 100644
+--- a/src/meter.c
++++ b/src/meter.c
+@@ -93,7 +93,7 @@ uint32_t surface_ring_mask(enum surface_ring_mode m, double v, unsigned leds)
+ 	}
+ 	case SURFACE_RING_FILL: {
+ 		unsigned p = (unsigned)round_half_up(clamp01(v) * leds);
+-		return p ? span(0, p - 1) : 0;
++		return p ? span(0, p) : 0;
+ 	}
+ 	case SURFACE_RING_PAN: {
+ 		unsigned p = (unsigned)round_half_up((b + 1) / 2 * (leds - 1));

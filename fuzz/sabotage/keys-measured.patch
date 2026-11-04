@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_keys.c:115 ({ 0x01, 0x00, 1, 1, -> { 0x01, 0x00, 1, 0,).
+Caught by the seed input "keys" of fuzz_keys.
+
+diff --git a/src/diginet/c24_keys.c b/src/diginet/c24_keys.c
+index 069ee55..da4be95 100644
+--- a/src/diginet/c24_keys.c
++++ b/src/diginet/c24_keys.c
+@@ -178,7 +178,7 @@ const struct surface_c24_key surface_c24_keys[] = {
+ 	{ 0x16, 0x1D, 1, 0, "LFE", "Pans" },
+ 	{ 0x17, 0x1D, 1, 0, "Left-Right", "Pans" },
+ 	{ 0x00, 0x00, 1, 0, "RecArm", "Channel" },
+-	{ 0x01, 0x00, 1, 1, "Pan_Send", "Channel" },
++	{ 0x01, 0x00, 1, 0, "Pan_Send", "Channel" },
+ 	{ 0x02, 0x00, 1, 1, "EQ", "Channel" },
+ 	{ 0x03, 0x00, 1, 1, "Dynamics", "Channel" },
+ 	{ 0x04, 0x00, 1, 1, "Switch_Active", "Channel" },

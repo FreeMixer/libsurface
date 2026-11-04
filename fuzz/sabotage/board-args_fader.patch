@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_board.c:93 (return 0; -> return s->g.fader_max + 1;).
+Caught by the seed input "online-blank" of fuzz_board.
+
+diff --git a/src/motor.c b/src/motor.c
+index b8acb1e..70d57fa 100644
+--- a/src/motor.c
++++ b/src/motor.c
+@@ -68,7 +68,7 @@ double motor_epsilon(const struct surface *s)
+ uint16_t motor_raw(const struct surface *s, double pos)
+ {
+ 	if (!(pos > 0))
+-		return 0;
++		return s->g.fader_max + 1;
+ 	if (pos >= 1)
+ 		return s->g.fader_max;
+ 	return (uint16_t)floor(pos * s->g.fader_max + 0.5);

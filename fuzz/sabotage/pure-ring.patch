@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_pure.c:69 (leds > SURFACE_MAX_RING_LEDS -> leds > SURFACE_MAX_RING_LEDS + 1).
+Caught by the seed input "ring-edges" of fuzz_pure.
+
+diff --git a/src/meter.c b/src/meter.c
+index 4fe205c..5703aa7 100644
+--- a/src/meter.c
++++ b/src/meter.c
+@@ -82,7 +82,7 @@ static uint32_t span(unsigned a, unsigned b)
+  * position 6 of 11. */
+ uint32_t surface_ring_mask(enum surface_ring_mode m, double v, unsigned leds)
+ {
+-	if (leds == 0 || leds > SURFACE_MAX_RING_LEDS || v != v)
++	if (leds == 0 || leds > SURFACE_MAX_RING_LEDS + 1 || v != v)
+ 		return 0;
+ 	unsigned c = (leds - 1) / 2;
+ 	double b = v < -1 ? -1 : v > 1 ? 1 : v;

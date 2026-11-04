@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_motor.c:264 (f->flush_at > now_us -> f->flush_at > now_us + 1000000).
+Caught by the seed input "clock" of fuzz_motor.
+
+diff --git a/src/motor.c b/src/motor.c
+index b8acb1e..5803bd6 100644
+--- a/src/motor.c
++++ b/src/motor.c
+@@ -325,7 +325,7 @@ void motor_tick(struct surface *s, uint64_t now_us)
+ {
+ 	for (size_t i = 0; i < s->cap; i++) {
+ 		struct fader_state *f = &s->faders[i];
+-		if (!f->t || !f->flush_armed || f->flush_at > now_us)
++		if (!f->t || !f->flush_armed || f->flush_at > now_us + 1000000)
+ 			continue;
+ 		f->flush_armed = 0;
+ 		if (f->has_awaiting || f->suspended)

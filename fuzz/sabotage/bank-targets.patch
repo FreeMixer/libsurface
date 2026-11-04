@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_bank.c:168 (i < s->nlist ? s->list[i] : 0 -> i <= s->nlist ? s->list[i] : 0).
+Caught by the seed input "steps" of fuzz_bank.
+
+diff --git a/src/bank.c b/src/bank.c
+index 9ea4dfd..6afd772 100644
+--- a/src/bank.c
++++ b/src/bank.c
+@@ -110,7 +110,7 @@ surface_target surface_strip_target(const struct surface *s, unsigned strip)
+ 		return 0;
+ 	if (strip < s->g.strips) {
+ 		size_t i = s->offset + strip;
+-		return i < s->nlist ? s->list[i] : 0;
++		return i <= s->nlist ? s->list[i] : 0;
+ 	}
+ 	if (strip == s->g.strips && s->g.has_master)
+ 		return s->master;
