@@ -17,6 +17,7 @@ if [ -d .git ] || git rev-parse --show-toplevel 2>/dev/null | grep -qx "$(pwd -P
 else
 	files=$(find . -type f ! -path './.git/*' | sed 's|^\./||')
 fi
+[ -n "$files" ] || { echo "FAIL no file listed in $top, so nothing was read"; exit 1; }
 # what only libdiginet-emu defines: the emulator's state and its first function, the pump, and
 # the include guards of its three headers
 pat='^[[:space:]]*(void[[:space:]]+emu_init[[:space:]]*\(|struct[[:space:]]+desk_emu[[:space:]]*\{|static[[:space:]]+inline[[:space:]]+void[[:space:]]+emu_pump_fd[[:space:]]*\(|#[[:space:]]*define[[:space:]]+DIGINET_(DESK_EMU|EMU_PUMP|TEST_NETNS)_H)'
