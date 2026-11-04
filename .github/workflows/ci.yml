@@ -1,9 +1,13 @@
 name: ci
-# A push runs on main only; a pull request already runs its branch.
+# A push runs on main and dedupe/all only; a pull request already runs its branch.
 on:
   push:
-    branches: [main]
+    branches: [main, dedupe/all]
   pull_request:
+env:
+  # the branch the modules' siblings (libdiginet, libmackie) are built from: a pull request into dedupe/all, or a push
+  # to it, builds on their dedupe/all, the wave this one lands with; every other run on their main
+  SIBLING_BRANCH: ${{ (github.base_ref == 'dedupe/all' || github.ref == 'refs/heads/dedupe/all') && 'dedupe/all' || 'main' }}
 jobs:
   test:
     name: build + test (${{ matrix.image }})
@@ -73,9 +77,9 @@ jobs:
           fetch-depth: 0   # the public-sources gate reads every commit message
       - name: Trust the checkout
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - name: libdiginet, built from its main
+      - name: libdiginet, built from its main (its dedupe/all on a dedupe/all run)
         run: |
-          git clone --depth 1 https://github.com/FreeMixer/libdiginet.git ../libdiginet
+          git clone --depth 1 --branch "$SIBLING_BRANCH" https://github.com/FreeMixer/libdiginet.git ../libdiginet
           make -C ../libdiginet libdiginet.a libdiginet-transport.a tools/diginet-packet-helper
       - name: Build, the module required
         run: make DIGINET_SRC=../libdiginet DIGINET=yes
@@ -107,9 +111,9 @@ jobs:
           fetch-depth: 0   # the public-sources gate reads every commit message
       - name: Trust the checkout
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - name: libmackie, built from its main
+      - name: libmackie, built from its main (its dedupe/all on a dedupe/all run)
         run: |
-          git clone --depth 1 https://github.com/FreeMixer/libmackie.git ../libmackie
+          git clone --depth 1 --branch "$SIBLING_BRANCH" https://github.com/FreeMixer/libmackie.git ../libmackie
           make -C ../libmackie libmackie.a
       - name: Build, the module required
         run: make MACKIE_SRC=../libmackie MACKIE=yes
