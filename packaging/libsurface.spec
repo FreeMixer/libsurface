@@ -134,10 +134,13 @@ make CFLAGS="%{optflags}" %{mkflags} test
 
 %files
 %license LICENSE
+%doc README.md
 %{_libdir}/libsurface.so.%{version}
 %{_libdir}/libsurface.so.%{abi}
 
 %files devel
+%license LICENSE
+%doc README.md
 %dir %{_includedir}/surface
 %{_includedir}/surface/surface.h
 %{_libdir}/libsurface.so
@@ -146,10 +149,13 @@ make CFLAGS="%{optflags}" %{mkflags} test
 %if %{with diginet}
 %files -n libsurface-diginet
 %license LICENSE
+%doc README.md
 %{_libdir}/libsurface-diginet.so.%{version}
 %{_libdir}/libsurface-diginet.so.%{dabi}
 
 %files -n libsurface-diginet-devel
+%license LICENSE
+%doc README.md
 %{_includedir}/surface/surface_diginet.h
 %{_includedir}/surface/surface_diginet_keys.h
 %{_libdir}/libsurface-diginet.so
@@ -157,6 +163,7 @@ make CFLAGS="%{optflags}" %{mkflags} test
 
 %files -n surface-c24
 %license LICENSE
+%doc README.md
 %{_bindir}/surface-c24
 %{_mandir}/man1/surface-c24.1*
 %endif
@@ -164,10 +171,13 @@ make CFLAGS="%{optflags}" %{mkflags} test
 %if %{with mackie}
 %files -n libsurface-mackie
 %license LICENSE
+%doc README.md
 %{_libdir}/libsurface-mackie.so.%{version}
 %{_libdir}/libsurface-mackie.so.%{mabi}
 
 %files -n libsurface-mackie-devel
+%license LICENSE
+%doc README.md
 %{_includedir}/surface/surface_mackie.h
 %{_libdir}/libsurface-mackie.so
 %{_libdir}/pkgconfig/libsurface-mackie.pc
