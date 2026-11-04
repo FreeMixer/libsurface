@@ -32,6 +32,8 @@ OBJS := src/surface.o src/motor.o src/bank.o src/meter.o
 
 TESTS := tests/test_motor tests/test_audit tests/test_bank tests/test_meter tests/test_c24
 KEYS_TEST := tests/test_c24_keys
+# The library compiled into the test with UBSan trapping: a NULL handed to memcpy stops it.
+UB_TEST := tests/test_colour_null
 
 GOLDEN := tests/golden/meter-steps.txt
 RUN_TEST := tests/run-test.sh
@@ -203,6 +205,10 @@ $(KEYS_TEST): tests/test_c24_keys.c src/diginet/c24_keys.c include/surface/surfa
 $(TESTS): tests/%: tests/%.c tests/harness.h libsurface.a
 	$(CC) $(CFLAGS) $(WARN) $(INC) $< libsurface.a $(LIBS) -o $@
 
+$(UB_TEST): tests/%: tests/%.c tests/harness.h $(OBJS:.o=.c) src/surface_impl.h
+	$(CC) $(CFLAGS) $(WARN) -fsanitize=undefined -fsanitize-undefined-trap-on-error $(INC) $< \
+	    $(OBJS:.o=.c) $(LIBS) -o $@
+
 # ---- shared library (the packages) ---------------------------------------------------------
 # --no-undefined: a symbol nothing defines fails here, not at a consumer's link.
 SO := libsurface.so.$(VERSION)
@@ -248,13 +254,14 @@ endif
 
 shared: $(SO) shared-diginet shared-mackie
 
-test: $(TESTS) $(KEYS_TEST)
+test: $(TESTS) $(KEYS_TEST) $(UB_TEST)
 	$(RUN_TEST) tests/test_motor
 	$(RUN_TEST) tests/test_audit
 	$(RUN_TEST) tests/test_bank
 	$(RUN_TEST) tests/test_meter $(GOLDEN)
 	$(RUN_TEST) tests/test_c24
 	$(RUN_TEST) tests/test_c24_keys
+	$(RUN_TEST) tests/test_colour_null
 	$(RUN_TEST) tests/constants-check.sh
 	$(RUN_TEST) tests/test_install.sh
 	$(RUN_TEST) tests/conformance-packaging.sh
@@ -317,7 +324,7 @@ ifeq ($(HAVE_DIGINET),yes)
 endif
 
 clean:
-	rm -f $(OBJS) $(OBJS:.o=.d) libsurface.a $(TESTS) $(KEYS_TEST) libsurface.so*
+	rm -f $(OBJS) $(OBJS:.o=.d) libsurface.a $(TESTS) $(KEYS_TEST) $(UB_TEST) libsurface.so*
 	rm -f $(DOBJS) $(DOBJS:.o=.d) libsurface-diginet.a libsurface-diginet.so* $(DTESTS) $(C24)
 	rm -f $(MOBJS) $(MOBJS:.o=.d) libsurface-mackie.a libsurface-mackie.so* tests/mackie/test_mackie
 	rm -rf build
