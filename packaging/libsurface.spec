@@ -8,7 +8,7 @@
 %bcond_without diginet
 %bcond_without mackie
 Name:           libsurface
-Version:        0.2.1
+Version:        0.2.2
 # The soname's major. rpm derives this package's provides and every consumer's requires from it.
 # It copies SURFACE_ABI of include/surface/surface.h, and tests/conformance-packaging.sh (in make
 # test) refuses a copy that disagrees.
@@ -186,6 +186,11 @@ make CFLAGS="%{optflags}" %{mkflags} test
 %endif
 
 %changelog
+* Wed Nov 04 2026 Pau Aliagas <linuxnow@gmail.com> - 0.2.2-1
+- The DigiNet module's tests build against libdiginet-emu (libdiginet 0.1.7) and
+  keep no copy of the desk emulator (#18).
+- The packages install their licence and a short README and no other markdown.
+- No change to the library or its ABI.
 * Sat Oct 31 2026 Pau Aliagas <linuxnow@gmail.com> - 0.2.1-1
 - A desk that returns under another name no longer crashes the host.
 * Fri Oct 30 2026 Pau Aliagas <linuxnow@gmail.com> - 0.2.0-1

@@ -1,3 +1,14 @@
+libsurface (0.2.2) unstable; urgency=medium
+
+  * The DigiNet module's tests build against libdiginet-emu, the desk
+    emulator libdiginet 0.1.7 installs, and this tree's copies are gone; a
+    check keeps them from coming back (#18).
+  * The packages install their licence and a short README and no other
+    markdown; their descriptions point to openmixer.org.
+  * No change to the library or its ABI.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Wed, 04 Nov 2026 18:00:00 +0100
+
 libsurface (0.2.1) unstable; urgency=medium
 
   * A desk that returns under another name no longer crashes the host.
