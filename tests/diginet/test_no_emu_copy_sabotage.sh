@@ -34,6 +34,12 @@ expect() { # name tree
 	if [ "$rc" -ne 0 ]; then echo "FAIL: $1 gave $rc: $out"; fail=1; else echo "ok: $1 -> 0"; fi
 }
 expect tarball "$tmp/src"
+# reading nothing is red: an empty tree, and a checkout git lists no file of
+mkdir -p "$tmp/empty" "$tmp/emptygit"; git -C "$tmp/emptygit" init -q
+for e in empty emptygit; do
+	out=$(sh "$top/tests/diginet/no-emu-copy.sh" "$tmp/$e" 2>&1); rc=$?
+	if [ "$rc" -eq 1 ] && printf '%s\n' "$out" | grep -q 'nothing was read'; then echo "ok: $e -> 1"; else echo "FAIL: $e gave $rc: $out"; fail=1; fi
+done
 if git -C "$top" rev-parse --show-toplevel 2>/dev/null | grep -qx "$top"; then
 	expect checkout "$top"
 fi
