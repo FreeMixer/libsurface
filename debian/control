@@ -2,7 +2,7 @@ Source: libsurface
 Section: libs
 Priority: optional
 Maintainer: Pau Aliagas <linuxnow@gmail.com>
-Build-Depends: debhelper-compat (= 13), git, pkgconf, libdiginet-dev (>= 0.1.7), libmackie-dev (>= 0.1.0)
+Build-Depends: debhelper-compat (= 13), git, pkgconf, libdiginet-dev (>= 0.1.8), libmackie-dev (>= 0.1.0)
 Standards-Version: 4.6.2
 Homepage: https://github.com/FreeMixer/libsurface
 Rules-Requires-Root: no

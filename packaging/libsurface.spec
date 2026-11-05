@@ -32,8 +32,9 @@ BuildRequires:  pkgconf-pkg-config
 %if %{with diginet}
 # the desk mux (diginet/transport/diginet_mux.h) is in libdiginet from 0.1.4
 BuildRequires:  pkgconfig(libdiginet-transport) >= 0.1.4
-# the module's tests run on libdiginet's desk emulator, installed as test support from 0.1.7
-BuildRequires:  pkgconfig(libdiginet-emu) >= 0.1.7
+# the module's tests run on libdiginet's desk emulator and child harness (emu_child.h), installed
+# as test support from 0.1.8
+BuildRequires:  pkgconfig(libdiginet-emu) >= 0.1.8
 %endif
 %if %{with mackie}
 BuildRequires:  pkgconfig(libmackie) >= 0.1.0
