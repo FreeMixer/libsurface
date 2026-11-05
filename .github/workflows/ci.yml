@@ -1,9 +1,12 @@
 name: ci
-# A push runs on main only; a pull request already runs its branch.
+# A push runs on main and dedupe/all only; a pull request already runs its branch.
 on:
   push:
-    branches: [main]
+    branches: [main, dedupe/all]
   pull_request:
+env:
+  # the branch the modules' siblings (libdiginet, libmackie) are built from: their layer is released and merged, so main
+  SIBLING_BRANCH: main
 jobs:
   test:
     name: build + test (${{ matrix.image }})
@@ -24,8 +27,6 @@ jobs:
             apt-get update && apt-get -y install --no-install-recommends gcc libc6-dev make git pkg-config ca-certificates python3-yaml
           fi
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0   # the public-sources gate reads every commit message
       - name: Trust the checkout
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Build
@@ -69,13 +70,11 @@ jobs:
             apt-get update && apt-get -y install --no-install-recommends gcc libc6-dev make git pkg-config ca-certificates python3-yaml
           fi
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0   # the public-sources gate reads every commit message
       - name: Trust the checkout
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: libdiginet, built from its main
         run: |
-          git clone --depth 1 https://github.com/FreeMixer/libdiginet.git ../libdiginet
+          git clone --depth 1 --branch "$SIBLING_BRANCH" https://github.com/FreeMixer/libdiginet.git ../libdiginet
           make -C ../libdiginet libdiginet.a libdiginet-transport.a libdiginet-emu.a tools/diginet-packet-helper
       - name: Build, the module required
         run: make DIGINET_SRC=../libdiginet DIGINET=yes
@@ -125,13 +124,11 @@ jobs:
             apt-get update && apt-get -y install --no-install-recommends gcc libc6-dev make git pkg-config ca-certificates python3-yaml
           fi
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0   # the public-sources gate reads every commit message
       - name: Trust the checkout
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: libmackie, built from its main
         run: |
-          git clone --depth 1 https://github.com/FreeMixer/libmackie.git ../libmackie
+          git clone --depth 1 --branch "$SIBLING_BRANCH" https://github.com/FreeMixer/libmackie.git ../libmackie
           make -C ../libmackie libmackie.a
       - name: Build, the module required
         run: make MACKIE_SRC=../libmackie MACKIE=yes
@@ -139,3 +136,8 @@ jobs:
         run: make MACKIE_SRC=../libmackie MACKIE=yes test
       - name: Shared libraries
         run: make MACKIE_SRC=../libmackie MACKIE=yes shared
+
+  # the checks every FreeMixer repository runs on what it publishes: commit messages, private references, and no
+  # local copy of either (FreeMixer/.github's public-sources-check)
+  public-sources:
+    uses: FreeMixer/.github/.github/workflows/public-sources-check.yml@v1
