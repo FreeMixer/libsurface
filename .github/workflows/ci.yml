@@ -5,9 +5,8 @@ on:
     branches: [main, dedupe/all]
   pull_request:
 env:
-  # the branch the modules' siblings (libdiginet, libmackie) are built from: a pull request into dedupe/all, or a push
-  # to it, builds on their dedupe/all, the wave this one lands with; every other run on their main
-  SIBLING_BRANCH: ${{ (github.base_ref == 'dedupe/all' || github.ref == 'refs/heads/dedupe/all') && 'dedupe/all' || 'main' }}
+  # the branch the modules' siblings (libdiginet, libmackie) are built from: their layer is released and merged, so main
+  SIBLING_BRANCH: main
 jobs:
   test:
     name: build + test (${{ matrix.image }})
@@ -73,16 +72,38 @@ jobs:
       - uses: actions/checkout@v4
       - name: Trust the checkout
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - name: libdiginet, built from its main (its dedupe/all on a dedupe/all run)
+      - name: libdiginet, built from its main
         run: |
           git clone --depth 1 --branch "$SIBLING_BRANCH" https://github.com/FreeMixer/libdiginet.git ../libdiginet
-          make -C ../libdiginet libdiginet.a libdiginet-transport.a tools/diginet-packet-helper
+          make -C ../libdiginet libdiginet.a libdiginet-transport.a libdiginet-emu.a tools/diginet-packet-helper
       - name: Build, the module required
         run: make DIGINET_SRC=../libdiginet DIGINET=yes
       - name: Tests, the module's included
         run: make DIGINET_SRC=../libdiginet DIGINET=yes test
       - name: Shared libraries
         run: make DIGINET_SRC=../libdiginet DIGINET=yes shared
+
+  # test_c24_tool needs a user and network namespace, which the containers above do not allow, so
+  # it reports SKIP there. This job is where it runs: on the bare runner, once Ubuntu's AppArmor
+  # limit is lifted, and a skip fails the job. SIBLING_BRANCH, when the workflow sets one, names the
+  # libdiginet branch this run lands with.
+  diginet-host:
+    name: DigiNet module on the runner (test_c24_tool in a namespace)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Allow unprivileged user namespaces
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+      - name: libdiginet
+        run: |
+          git clone --depth 1 --branch "${SIBLING_BRANCH:-main}" https://github.com/FreeMixer/libdiginet.git ../libdiginet
+          make -C ../libdiginet libdiginet.a libdiginet-transport.a libdiginet-emu.a tools/diginet-packet-helper
+      - name: The module's tests
+        run: make DIGINET_SRC=../libdiginet DIGINET=yes test-diginet 2>&1 | tee test.log; test "${PIPESTATUS[0]}" -eq 0
+        shell: bash
+      - name: The end-to-end test ran
+        run: "grep -q '^PASS: tests/diginet/test_c24_tool$' test.log"
 
   # The Mackie module (libsurface-mackie) against libmackie's main.
   mackie:
@@ -105,7 +126,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Trust the checkout
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - name: libmackie, built from its main (its dedupe/all on a dedupe/all run)
+      - name: libmackie, built from its main
         run: |
           git clone --depth 1 --branch "$SIBLING_BRANCH" https://github.com/FreeMixer/libmackie.git ../libmackie
           make -C ../libmackie libmackie.a

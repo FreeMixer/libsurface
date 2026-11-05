@@ -27,7 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "desk_emu.h"
+#include <diginet/testsupport/desk_emu.h>
 
 #include <diginet/diginet_codec.h>
 #include <surface/surface_diginet.h>

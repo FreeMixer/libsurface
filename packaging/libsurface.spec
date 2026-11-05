@@ -8,7 +8,7 @@
 %bcond_without diginet
 %bcond_without mackie
 Name:           libsurface
-Version:        0.2.1
+Version:        0.2.2
 # The soname's major. rpm derives this package's provides and every consumer's requires from it.
 # It copies SURFACE_ABI of include/surface/surface.h, and tests/conformance-packaging.sh (in make
 # test) refuses a copy that disagrees.
@@ -31,10 +31,13 @@ BuildRequires:  git-core
 BuildRequires:  pkgconf-pkg-config
 %if %{with diginet}
 # the desk mux (diginet/transport/diginet_mux.h) is in libdiginet from 0.1.4
-BuildRequires:  pkgconfig(libdiginet-transport) >= 0.1.4
+BuildRequires:  (pkgconfig(libdiginet-transport) >= 0.1.4 with pkgconfig(libdiginet-transport) < 0.2)
+# the module's tests run on libdiginet's desk emulator and child harness (emu_child.h), installed
+# as test support from 0.1.8
+BuildRequires:  (pkgconfig(libdiginet-emu) >= 0.1.8 with pkgconfig(libdiginet-emu) < 0.2)
 %endif
 %if %{with mackie}
-BuildRequires:  pkgconfig(libmackie) >= 0.1.0
+BuildRequires:  (pkgconfig(libmackie) >= 0.1.0 with pkgconfig(libmackie) < 0.2)
 %endif
 
 %description
@@ -43,6 +46,7 @@ surface and every host: a motor-fader policy that never fights the hand, touch w
 for a lost release and a debounce for a chattering sensor, the bank window, a shadow of the
 whole board replayed when a device comes back blank, meter steps with hysteresis, LED ring
 rendering. It speaks no wire and knows no mixing semantics: a backend encodes, a host names what each strip shows.
+Its documentation is on openmixer.org.
 
 %package devel
 Summary:        Development files for libsurface
@@ -51,13 +55,14 @@ Requires:       %{name}%{?_isa} = %{version}-%{release}
 %description devel
 The header and the pkg-config file (libsurface) for building a control-surface host or backend
 on libsurface.
+Its documentation is on openmixer.org.
 
 %if %{with diginet}
 %package -n libsurface-diginet
 Summary:        A Digidesign Control|24 under libsurface, over DigiNet
 Requires:       %{name}%{?_isa} = %{version}-%{release}
 # the soname alone does not say it: the desk mux is in libdiginet from 0.1.4
-Requires:       libdiginet%{?_isa} >= 0.1.4
+Requires:       (libdiginet%{?_isa} >= 0.1.4 with libdiginet%{?_isa} < 0.2)
 
 %description -n libsurface-diginet
 libsurface-diginet is libsurface's DigiNet module: a Digidesign Control|24 driven by libsurface's
@@ -65,6 +70,7 @@ device behaviour over libdiginet's desk mux. One listener hears every interface 
 each desk the host attaches is a libsurface surface whose board is replayed on every new
 session, with its faders, keys, V-Pots, jog, LEDs, rings, meters, scribbles and counter mapped
 to and from the wire, and a deaf desk or one owned by another host raised as a warning.
+Its documentation is on openmixer.org.
 
 %package -n libsurface-diginet-devel
 Summary:        Development files for libsurface-diginet
@@ -74,18 +80,20 @@ Requires:       %{name}-devel%{?_isa} = %{version}-%{release}
 %description -n libsurface-diginet-devel
 The header and the pkg-config file (libsurface-diginet) for building a host that drives a
 Control|24 through libsurface.
+Its documentation is on openmixer.org.
 
 %package -n surface-c24
 Summary:        Drive a Control|24 through libsurface, with no privilege of its own
 Requires:       libsurface-diginet%{?_isa} = %{version}-%{release}
 # the packet socket comes from diginet-packet-helper
-Requires:       diginet-tools
+Requires:       (diginet-tools >= 0.1.4 with diginet-tools < 0.2)
 
 %description -n surface-c24
 surface-c24 takes its packet socket from diginet-packet-helper, attaches the first Control|24
 that announces on any interface, labels its strips, mirrors each fader on its meter, prints
 every event, and takes writes (scribbles, LEDs, fader targets, rings) from a FIFO.
 %endif
+Its documentation is on openmixer.org.
 
 %prep
 %autosetup -n %{name}-%{version}
@@ -99,17 +107,19 @@ libsurface-mackie is libsurface's Mackie module: one surface per MCU device, the
 touch from the touch notes and the host-connection handshake, driven by libsurface's device
 behaviour with libmackie as its codec. The MIDI transport stays the host's: encoded messages go to a
 write callback and received ones come in by call. It owns no port, thread or clock.
+Its documentation is on openmixer.org.
 
 %package -n libsurface-mackie-devel
 Summary:        Development files for libsurface-mackie
 Requires:       libsurface-mackie%{?_isa} = %{version}-%{release}
 Requires:       %{name}-devel%{?_isa} = %{version}-%{release}
-Requires:       pkgconfig(libmackie) >= 0.1.0
+Requires:       (pkgconfig(libmackie) >= 0.1.0 with pkgconfig(libmackie) < 0.2)
 
 %description -n libsurface-mackie-devel
 The header and the pkg-config file (libsurface-mackie) for building a host that drives an MCU
 surface through libsurface.
 %endif
+Its documentation is on openmixer.org.
 
 %build
 # DIGINET=yes: the module or a failed build, never a silent skip; DIGINET=no: the core alone.
@@ -132,7 +142,8 @@ make CFLAGS="%{optflags}" %{mkflags} test
 %{_libdir}/libsurface.so.%{abi}
 
 %files devel
-%doc BUILDING.md
+%license LICENSE
+%doc README.md
 %dir %{_includedir}/surface
 %{_includedir}/surface/surface.h
 %{_libdir}/libsurface.so
@@ -141,10 +152,13 @@ make CFLAGS="%{optflags}" %{mkflags} test
 %if %{with diginet}
 %files -n libsurface-diginet
 %license LICENSE
+%doc README.md
 %{_libdir}/libsurface-diginet.so.%{version}
 %{_libdir}/libsurface-diginet.so.%{dabi}
 
 %files -n libsurface-diginet-devel
+%license LICENSE
+%doc README.md
 %{_includedir}/surface/surface_diginet.h
 %{_includedir}/surface/surface_diginet_keys.h
 %{_libdir}/libsurface-diginet.so
@@ -152,6 +166,7 @@ make CFLAGS="%{optflags}" %{mkflags} test
 
 %files -n surface-c24
 %license LICENSE
+%doc README.md
 %{_bindir}/surface-c24
 %{_mandir}/man1/surface-c24.1*
 %endif
@@ -159,16 +174,27 @@ make CFLAGS="%{optflags}" %{mkflags} test
 %if %{with mackie}
 %files -n libsurface-mackie
 %license LICENSE
+%doc README.md
 %{_libdir}/libsurface-mackie.so.%{version}
 %{_libdir}/libsurface-mackie.so.%{mabi}
 
 %files -n libsurface-mackie-devel
+%license LICENSE
+%doc README.md
 %{_includedir}/surface/surface_mackie.h
 %{_libdir}/libsurface-mackie.so
 %{_libdir}/pkgconfig/libsurface-mackie.pc
 %endif
 
 %changelog
+* Wed Nov 04 2026 Pau Aliagas <linuxnow@gmail.com> - 0.2.2-1
+- The DigiNet module's tests build against libdiginet-emu (libdiginet 0.1.8) and
+  keep no copy of the desk emulator; a check keeps it so and reads at least one file (#18).
+- Every dependency on libdiginet and libmackie states a floor and a ceiling
+  (libdiginet >= 0.1.4, build >= 0.1.8, and < 0.2; libmackie >= 0.1.0 and < 0.2).
+- The commit-message and private-reference checks are the shared ones; the local copy is gone.
+- The packages install their licence and a short README and no other markdown.
+- No change to the library or its ABI.
 * Sat Oct 31 2026 Pau Aliagas <linuxnow@gmail.com> - 0.2.1-1
 - A desk that returns under another name no longer crashes the host.
 * Fri Oct 30 2026 Pau Aliagas <linuxnow@gmail.com> - 0.2.0-1

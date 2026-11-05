@@ -85,10 +85,15 @@ The module's tests, in `tests/diginet/`, run after the core's:
   restart and at the first announce after a host restart; a desk that goes and comes back;
 - `test_c24_tool`: `surface-c24` itself, unprivileged, its socket from `diginet-packet-helper`,
   against the emulator on a veth pair in a user and network namespace of the test's own. SKIP
-  with no helper or no such namespace;
+  with no helper or no such namespace, which is every container job; CI's `DigiNet module on the
+  runner` job has both, and a skip there fails it;
 - `test_install.sh`: the module installed, a consumer built through pkg-config alone;
-- `emu-sync-check.sh`: libdiginet installs no test code, so its emulator is copied into
-  `tests/diginet/` (`tests/diginet/SOURCE`); this holds the copies to the `DIGINET_SRC` tree.
+- the tests run on libdiginet's desk emulator and child harness, `libdiginet-emu` (libdiginet
+  0.1.8 and later install them as test support), from `DIGINET_SRC` or through pkg-config; without
+  `diginet/testsupport/emu_child.h` they fail;
+- `no-emu-copy.sh` (in every `make test`): no C file of this tree defines the emulator again,
+  and `no-emu-copy-sabotage.sh` puts a copy of libdiginet's `desk_emu.h` back in a scratch copy
+  of the tree and requires that check to go red on it.
 
 ## The Mackie module
 
