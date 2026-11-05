@@ -74,12 +74,23 @@ static struct {
 	int has_ring_code, has_colour;
 } W;
 
+/* the slot of a key the harness wrote, or -1 for a key it never wrote */
 static int key_index(uint16_t key)
 {
 	for (int i = 0; i < NKEYS; i++)
 		if (keys[i] == key)
 			return i;
-	abort();   /* not a property: the library gave a key the harness never wrote */
+	return -1;
+}
+
+FUZZ_CHECK check_led_key(int i)
+{
+	/* An LED reaches the device at a key the host wrote, never at another.
+	 * contract: surface.h surface_led ("latest wins"); surface_led takes the key of the LED it sets
+	 * mutant: src/surface.c:363 `s->ops.led(s->backend, key, st)` -> `s->ops.led(s->backend, key ^ 0x0400, st)`
+	 * input: leds */
+	if (i < 0)
+		abort();
 }
 
 FUZZ_CHECK check_args_fader(unsigned strip, uint16_t raw)
@@ -131,6 +142,7 @@ static int op_led(void *b, uint16_t key, enum surface_led st)
 	(void)b;
 	W.calls++;
 	int i = key_index(key);
+	check_led_key(i);
 	W.dev.led_seen[i] = 1;
 	W.dev.led[i] = (uint8_t)st;
 	return 1;

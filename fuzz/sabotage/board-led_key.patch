@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_board.c:93 (an LED is written at another key than the host's).
+Caught by the seed input "leds" of fuzz_board.
+
+diff --git a/src/surface.c b/src/surface.c
+index 81d7b56..0f23e53 100644
+--- a/src/surface.c
++++ b/src/surface.c
+@@ -360,7 +360,7 @@ int surface_led(struct surface *s, uint16_t key, enum surface_led st)
+ 	struct led_slot *l = led_slot(s, key, 1);
+ 	if (l)
+ 		l->st = (uint8_t)st;
+-	int rc = s->online ? s->ops.led(s->backend, key, st) : 0;
++	int rc = s->online ? s->ops.led(s->backend, key ^ 0x0400, st) : 0;
+ 	return l ? rc : SURFACE_E_FULL;
+ }
+ 
