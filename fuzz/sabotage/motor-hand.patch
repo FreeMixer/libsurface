@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_motor.c:81 (The motor writes no cap a hand holds. The Control|24 holds its own set-point and is).
+Caught by the seed input "hand" of fuzz_motor.
+
+diff --git a/src/motor.c b/src/motor.c
+index b8acb1e..4dfdba2 100644
+--- a/src/motor.c
++++ b/src/motor.c
+@@ -111,7 +111,7 @@ static void motor_arm_flush(struct fader_state *f, uint64_t now_us)
+ int motor_write_strip(struct surface *s, unsigned strip, double pos, uint64_t now_us)
+ {
+ 	struct strip_state *st = &s->strip[strip];
+-	if (!s->online || touch_held(s, strip, now_us))
++	if (!s->online || touch_held(s, strip, now_us + 1000000))
+ 		return 0;
+ 	uint16_t raw = motor_raw(s, pos);
+ 	if (s->ops.fader(s->backend, strip, raw) <= 0)

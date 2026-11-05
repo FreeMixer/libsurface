@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_motor.c:274 (st->release_at <= now_us -> st->release_at < now_us).
+Caught by the seed input "clock-c24" of fuzz_motor.
+
+diff --git a/src/surface.c b/src/surface.c
+index 81d7b56..1570fd2 100644
+--- a/src/surface.c
++++ b/src/surface.c
+@@ -551,7 +551,7 @@ int surface_tick(struct surface *s, uint64_t now_us)
+ 		return SURFACE_E_ARG;
+ 	for (unsigned k = 0; k < surface_nstrips(s); k++) {
+ 		struct strip_state *st = &s->strip[k];
+-		if (st->release_pending && st->release_at <= now_us) {
++		if (st->release_pending && st->release_at < now_us) {
+ 			touch_release(s, k, now_us);
+ 		} else if (st->touch && s->g.touch_hold_ms && now_us >= st->touch_until) {
+ 			/* a lost release healed: the host hears the touch end; the motor follows the

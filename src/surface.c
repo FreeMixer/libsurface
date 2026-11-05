@@ -429,7 +429,8 @@ int surface_colour(struct surface *s, const uint8_t *per_strip, size_t n)
 		return SURFACE_E_ARG;
 	if (n > s->g.strips)
 		n = s->g.strips;
-	memcpy(s->colour, per_strip, n);
+	if (n)
+		memcpy(s->colour, per_strip, n);
 	s->ncolour = n;
 	if (!s->ops.colour || !s->online)
 		return 0;

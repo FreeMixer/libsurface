@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_board.c:212 (n = s->g.strips; -> n = s->g.strips + 1;).
+Caught by the seed input "colours" of fuzz_board.
+
+diff --git a/src/surface.c b/src/surface.c
+index 81d7b56..94cc841 100644
+--- a/src/surface.c
++++ b/src/surface.c
+@@ -428,7 +428,7 @@ int surface_colour(struct surface *s, const uint8_t *per_strip, size_t n)
+ 	if (!s || (!per_strip && n))
+ 		return SURFACE_E_ARG;
+ 	if (n > s->g.strips)
+-		n = s->g.strips;
++		n = s->g.strips + 1;
+ 	if (n)
+ 		memcpy(s->colour, per_strip, n);
+ 	s->ncolour = n;

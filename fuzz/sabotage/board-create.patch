@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_board.c:248 (g->strips <= SURFACE_MAX_STRIPS -> g->strips <= SURFACE_MAX_STRIPS + 1).
+Caught by the seed input "geometry-1" of fuzz_board.
+
+diff --git a/src/surface.c b/src/surface.c
+index 81d7b56..3b2017d 100644
+--- a/src/surface.c
++++ b/src/surface.c
+@@ -60,7 +60,7 @@ int surface_geometry_preset(enum surface_model m, struct surface_geometry *g)
+ 
+ static int geometry_ok(const struct surface_geometry *g)
+ {
+-	return g->strips && g->strips <= SURFACE_MAX_STRIPS && g->fader_max &&
++	return g->strips && g->strips <= SURFACE_MAX_STRIPS + 1 && g->fader_max &&
+ 		g->meter_sides <= SURFACE_MAX_METER_SIDES && g->ring_leds <= SURFACE_MAX_RING_LEDS &&
+ 		g->scribble_rows <= SURFACE_MAX_SCRIBBLE_ROWS &&
+ 		g->scribble_chars <= SURFACE_MAX_SCRIBBLE_CHARS;

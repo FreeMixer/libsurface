@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_board.c:355 (memcpys->counter, text, n; -> memcpys->counter, text, n ? n - 1 : 0;).
+Caught by the seed input "counters" of fuzz_board.
+
+diff --git a/src/surface.c b/src/surface.c
+index 81d7b56..d1e339d 100644
+--- a/src/surface.c
++++ b/src/surface.c
+@@ -417,7 +417,7 @@ int surface_counter(struct surface *s, const char *text)
+ 	size_t n = strlen(text);
+ 	if (n >= sizeof s->counter)
+ 		n = sizeof s->counter - 1;
+-	memcpy(s->counter, text, n);
++	memcpy(s->counter, text, n ? n - 1 : 0);
+ 	s->counter[n] = 0;
+ 	s->counter_set = 1;
+ 	return s->online ? s->ops.counter(s->backend, s->counter) : 0;

@@ -32,6 +32,8 @@ OBJS := src/surface.o src/motor.o src/bank.o src/meter.o
 
 TESTS := tests/test_motor tests/test_audit tests/test_bank tests/test_meter tests/test_c24
 KEYS_TEST := tests/test_c24_keys
+# The library compiled into the test with UBSan trapping: a NULL handed to memcpy stops it.
+UB_TEST := tests/test_colour_null
 
 GOLDEN := tests/golden/meter-steps.txt
 RUN_TEST := tests/run-test.sh
@@ -213,6 +215,10 @@ $(KEYS_TEST): tests/test_c24_keys.c src/diginet/c24_keys.c include/surface/surfa
 $(TESTS): tests/%: tests/%.c tests/harness.h libsurface.a
 	$(CC) $(CFLAGS) $(WARN) $(INC) $< libsurface.a $(LIBS) -o $@
 
+$(UB_TEST): tests/%: tests/%.c tests/harness.h $(OBJS:.o=.c) src/surface_impl.h
+	$(CC) $(CFLAGS) $(WARN) -fsanitize=undefined -fsanitize-undefined-trap-on-error $(INC) $< \
+	    $(OBJS:.o=.c) $(LIBS) -o $@
+
 # ---- shared library (the packages) ---------------------------------------------------------
 # --no-undefined: a symbol nothing defines fails here, not at a consumer's link.
 SO := libsurface.so.$(VERSION)
@@ -258,13 +264,14 @@ endif
 
 shared: $(SO) shared-diginet shared-mackie
 
-test: $(TESTS) $(KEYS_TEST)
+test: $(TESTS) $(KEYS_TEST) $(UB_TEST)
 	$(RUN_TEST) tests/test_motor
 	$(RUN_TEST) tests/test_audit
 	$(RUN_TEST) tests/test_bank
 	$(RUN_TEST) tests/test_meter $(GOLDEN)
 	$(RUN_TEST) tests/test_c24
 	$(RUN_TEST) tests/test_c24_keys
+	$(RUN_TEST) tests/test_colour_null
 	$(RUN_TEST) tests/constants-check.sh
 	$(RUN_TEST) tests/diginet/no-emu-copy.sh
 	$(RUN_TEST) tests/diginet/test_no_emu_copy_sabotage.sh
@@ -333,10 +340,129 @@ ifeq ($(HAVE_DIGINET),yes)
 	ln -sf libsurface-diginet.so.$(DABI) $(DESTDIR)$(LIBDIR)/libsurface-diginet.so
 endif
 
+# ---- fuzzing (fuzz/README.md) ----------------------------------------------------------------
+# One libFuzzer harness per input surface of the library in fuzz/, each linked against a library
+# of its own: the same sources compiled with clang, AddressSanitizer, UndefinedBehaviorSanitizer
+# and libFuzzer's coverage hooks into build/fuzz/obj, so the ordinary build above is never
+# touched. None of these targets is part of `make test`.
+#   make fuzz                   build every harness
+#   make fuzz-run FUZZ_TIME=60  fuzz each for the budget; red on any crash, the input left in
+#                               fuzz/findings/
+#   make fuzz-sabotage          each patch of fuzz/sabotage/ must make its harness abort on a
+#                               seed, in the property its header names
+#   make fuzz-records           each check's mutant: and input: record, alone, must make that
+#                               check abort on that seed; red on a check with no record and no
+#                               not-a-property line
+#   make fuzz-coverage          line coverage of each reader over its seed corpus, red below
+#                               fuzz/coverage-floor.txt or on a property check no seed reaches
+#   make fuzz-static            each harness linked fully static with a plain driver, over its
+#                               corpus
+#   make fuzz-corpus            write fuzz/corpus/ again from the library and the builders
+#   make fuzz-corpus-check      red when fuzz/corpus/ is not what fuzz-corpus writes
+FUZZ_CC        ?= clang
+FUZZ_TIME      ?= 60
+FUZZ_BUILD     := build/fuzz
+FUZZ_HARNESSES := pure board bank motor keys
+FUZZ_SAN       := -fsanitize=address,undefined -fno-sanitize-recover=all
+FUZZ_CFLAGS    := -O1 -g -std=c11 -Wall -Wextra -Werror -D_DEFAULT_SOURCE -fno-omit-frame-pointer
+# What the harnesses drive: the core and the Control|24 key table (not the modules that need a
+# transport library).
+FUZZ_SRCS      := $(OBJS:.o=.c) src/diginet/c24_keys.c
+FUZZ_LIB       := $(FUZZ_BUILD)/libsurface-fuzz.a
+FUZZ_BINS      := $(FUZZ_HARNESSES:%=$(FUZZ_BUILD)/fuzz_%)
+
+$(FUZZ_BUILD)/obj/%.o: %.c
+	@mkdir -p $(dir $@)
+	$(FUZZ_CC) $(FUZZ_CFLAGS) $(FUZZ_SAN) -fsanitize=fuzzer-no-link -MMD -MP $(INC) -c $< -o $@
+
+$(FUZZ_LIB): $(FUZZ_SRCS:%.c=$(FUZZ_BUILD)/obj/%.o)
+	$(AR) rcs $@ $^
+
+$(FUZZ_BUILD)/fuzz_%: fuzz/fuzz_%.c fuzz/fuzz.h fuzz/spec.h $(FUZZ_LIB)
+	$(FUZZ_CC) $(FUZZ_CFLAGS) $(FUZZ_SAN) -fsanitize=fuzzer -MMD -MP -MF $@.d $(INC) $< $(FUZZ_LIB) $(LIBS) -o $@
+
+fuzz: $(FUZZ_BINS)
+
+fuzz-run: fuzz
+	FUZZ_BUILD=$(FUZZ_BUILD) FUZZ_TIME=$(FUZZ_TIME) fuzz/run.sh $(FUZZ_HARNESSES)
+
+fuzz-sabotage:
+	FUZZ_BUILD=$(FUZZ_BUILD) MAKE="$(MAKE)" fuzz/sabotage.sh
+
+# Each record built plain and native with fuzz/standalone.c for its driver, no sanitizer, as the
+# OSS Verify coverage build is.
+fuzz-records:
+	FUZZ_BUILD=$(FUZZ_BUILD) FUZZ_CC=$(FUZZ_CC) fuzz/records.sh $(FUZZ_HARNESSES)
+
+# The same harnesses driven by fuzz/standalone.c instead of libFuzzer and linked fully static,
+# each run over its corpus: the build a verifier that brings its own driver takes. Needs the
+# static libc (glibc-static on Fedora).
+FUZZ_STATIC_BUILD := $(FUZZ_BUILD)/static
+FUZZ_STATIC_FLAGS := -O2 -g -std=c11 -Wall -Wextra -Werror -D_DEFAULT_SOURCE
+
+$(FUZZ_STATIC_BUILD)/fuzz_%: fuzz/fuzz_%.c fuzz/fuzz.h fuzz/spec.h fuzz/standalone.c $(FUZZ_SRCS)
+	@mkdir -p $(@D)
+	$(FUZZ_CC) $(FUZZ_STATIC_FLAGS) -static $(INC) -Ifuzz $< fuzz/standalone.c $(FUZZ_SRCS) $(LIBS) -o $@
+
+fuzz-static: $(FUZZ_HARNESSES:%=$(FUZZ_STATIC_BUILD)/fuzz_%)
+	@for h in $(FUZZ_HARNESSES); do \
+	  if readelf -lW $(FUZZ_STATIC_BUILD)/fuzz_$$h | grep -qE 'INTERP|DYNAMIC'; then \
+	    echo "fuzz-static: fuzz_$$h is not static"; exit 1; fi; \
+	  out=$$($(FUZZ_STATIC_BUILD)/fuzz_$$h fuzz/corpus/$$h/* 2>&1) || \
+	    { echo "$$out"; echo "fuzz-static: fuzz_$$h failed on its own corpus"; exit 1; }; \
+	  echo "fuzz_$$h, static: $$out"; done
+
+# The coverage witness: the same harnesses without sanitizers, instrumented for llvm-cov, each
+# run once over its seed corpus (-runs=0 executes the corpus and nothing else); the llvm-cov
+# and llvm-profdata of FUZZ_CC's own LLVM.
+FUZZ_COV_BUILD := $(FUZZ_BUILD)/cov
+FUZZ_COV_FLAGS := -O0 -g -std=c11 -D_DEFAULT_SOURCE -fprofile-instr-generate -fcoverage-mapping
+FUZZ_COV_LIB   := $(FUZZ_COV_BUILD)/libsurface-cov.a
+LLVM_COV       ?= llvm-cov
+LLVM_PROFDATA  ?= llvm-profdata
+
+$(FUZZ_COV_BUILD)/obj/%.o: %.c
+	@mkdir -p $(dir $@)
+	$(FUZZ_CC) $(FUZZ_COV_FLAGS) -MMD -MP $(INC) -c $< -o $@
+
+$(FUZZ_COV_LIB): $(FUZZ_SRCS:%.c=$(FUZZ_COV_BUILD)/obj/%.o)
+	$(AR) rcs $@ $^
+
+$(FUZZ_COV_BUILD)/fuzz_%: fuzz/fuzz_%.c fuzz/fuzz.h fuzz/spec.h $(FUZZ_COV_LIB)
+	$(FUZZ_CC) $(FUZZ_COV_FLAGS) -fsanitize=fuzzer $(INC) $< $(FUZZ_COV_LIB) $(LIBS) -o $@
+
+fuzz-coverage: $(FUZZ_HARNESSES:%=$(FUZZ_COV_BUILD)/fuzz_%)
+	@set -e; for h in $(FUZZ_HARNESSES); do \
+	  rm -f $(FUZZ_COV_BUILD)/$$h.profraw; \
+	  LLVM_PROFILE_FILE=$(FUZZ_COV_BUILD)/$$h.profraw $(FUZZ_COV_BUILD)/fuzz_$$h -runs=0 \
+	      fuzz/corpus/$$h/ >$(FUZZ_COV_BUILD)/$$h.log 2>&1 || \
+	    { cat $(FUZZ_COV_BUILD)/$$h.log; echo "fuzz-coverage: fuzz_$$h failed on its own corpus"; exit 1; }; \
+	  $(LLVM_PROFDATA) merge -sparse $(FUZZ_COV_BUILD)/$$h.profraw -o $(FUZZ_COV_BUILD)/$$h.profdata; \
+	done
+	@LLVM_COV=$(LLVM_COV) fuzz/coverage.sh $(FUZZ_COV_BUILD) $(FUZZ_HARNESSES)
+
+# The seed corpus is written by fuzz/gen-corpus.c from the library's own presets and the
+# harnesses' input forms, never from a network or a capture, and committed.
+FUZZ_GEN := build/fuzz-gen-corpus
+$(FUZZ_GEN): fuzz/gen-corpus.c fuzz/fuzz.h fuzz/spec.h libsurface.a src/diginet/c24_keys.c
+	@mkdir -p build
+	$(CC) $(CFLAGS) $(WARN) $(INC) -Ifuzz fuzz/gen-corpus.c src/diginet/c24_keys.c libsurface.a $(LIBS) -o $@
+
+fuzz-corpus: $(FUZZ_GEN)
+	rm -rf fuzz/corpus
+	$(FUZZ_GEN) fuzz/corpus
+
+fuzz-corpus-check: $(FUZZ_GEN)
+	@rm -rf build/fuzz-corpus-check
+	@$(FUZZ_GEN) build/fuzz-corpus-check
+	@diff -r build/fuzz-corpus-check fuzz/corpus && echo "fuzz/corpus is what fuzz-corpus writes"
+
+-include $(FUZZ_SRCS:%.c=$(FUZZ_BUILD)/obj/%.d) $(FUZZ_BINS:=.d)
+
 clean:
-	rm -f $(OBJS) $(OBJS:.o=.d) libsurface.a $(TESTS) $(KEYS_TEST) libsurface.so*
+	rm -f $(OBJS) $(OBJS:.o=.d) libsurface.a $(TESTS) $(KEYS_TEST) $(UB_TEST) libsurface.so*
 	rm -f $(DOBJS) $(DOBJS:.o=.d) libsurface-diginet.a libsurface-diginet.so* $(DTESTS) $(C24)
 	rm -f $(MOBJS) $(MOBJS:.o=.d) libsurface-mackie.a libsurface-mackie.so* tests/mackie/test_mackie
 	rm -rf build
 
-.PHONY: all diginet mackie test public-sources test-diginet test-mackie shared shared-diginet shared-mackie install install-common install-shared clean
+.PHONY: fuzz fuzz-run fuzz-sabotage fuzz-records fuzz-coverage fuzz-static fuzz-corpus fuzz-corpus-check all diginet mackie test public-sources test-diginet test-mackie shared shared-diginet shared-mackie install install-common install-shared clean

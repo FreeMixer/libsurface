@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_motor.c:102 (return s->g.fader_max; -> return s->g.fader_max + 1;).
+Caught by the seed input "report-edges" of fuzz_motor.
+
+diff --git a/src/motor.c b/src/motor.c
+index b8acb1e..5557044 100644
+--- a/src/motor.c
++++ b/src/motor.c
+@@ -70,7 +70,7 @@ uint16_t motor_raw(const struct surface *s, double pos)
+ 	if (!(pos > 0))
+ 		return 0;
+ 	if (pos >= 1)
+-		return s->g.fader_max;
++		return s->g.fader_max + 1;
+ 	return (uint16_t)floor(pos * s->g.fader_max + 0.5);
+ }
+ 

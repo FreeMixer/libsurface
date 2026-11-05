@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_bank.c:181 (if !s || !t -> if !s).
+Caught by the seed input "repeats" of fuzz_bank.
+
+diff --git a/src/bank.c b/src/bank.c
+index 9ea4dfd..629ff7b 100644
+--- a/src/bank.c
++++ b/src/bank.c
+@@ -119,7 +119,7 @@ surface_target surface_strip_target(const struct surface *s, unsigned strip)
+ 
+ int surface_target_strip(const struct surface *s, surface_target t)
+ {
+-	if (!s || !t)
++	if (!s)
+ 		return -1;
+ 	for (unsigned k = 0; k < s->g.strips; k++)
+ 		if (surface_strip_target(s, k) == t)

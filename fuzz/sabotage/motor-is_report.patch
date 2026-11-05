@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_motor.c:210 (<= s->g.motor_epsilon_q -> < s->g.motor_epsilon_q).
+Caught by the seed input "report" of fuzz_motor.
+
+diff --git a/src/surface.c b/src/surface.c
+index 81d7b56..afde3dd 100644
+--- a/src/surface.c
++++ b/src/surface.c
+@@ -256,7 +256,7 @@ int surface_fader_is_report(const struct surface *s, unsigned strip, uint16_t ra
+ 		return 0;
+ 	const struct strip_state *st = &s->strip[strip];
+ 	return s->g.reports_motor_moves && !touch_held(s, strip, now_us) && st->commanded_set &&
+-		abs((int)raw - (int)st->commanded) <= s->g.motor_epsilon_q;
++		abs((int)raw - (int)st->commanded) < s->g.motor_epsilon_q;
+ }
+ 
+ void surface_in_fader(struct surface *s, unsigned strip, uint16_t raw, uint64_t now_us)

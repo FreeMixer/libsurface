@@ -1,0 +1,16 @@
+Breaks the check of fuzz/fuzz_motor.c:253 (return d < now_us ? now_us : d; -> return d < now_us ? now_us - 1 : d;).
+Caught by the seed input "clock-c24" of fuzz_motor.
+
+diff --git a/src/surface.c b/src/surface.c
+index 81d7b56..b5dfd2f 100644
+--- a/src/surface.c
++++ b/src/surface.c
+@@ -542,7 +542,7 @@ uint64_t surface_deadline(const struct surface *s, uint64_t now_us)
+ 		else if (st->touch && s->g.touch_hold_ms && !st->release_pending && st->touch_until < d)
+ 			d = st->touch_until;
+ 	}
+-	return d < now_us ? now_us : d;
++	return d < now_us ? now_us - 1 : d;
+ }
+ 
+ int surface_tick(struct surface *s, uint64_t now_us)

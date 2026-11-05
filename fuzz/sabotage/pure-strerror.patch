@@ -1,0 +1,14 @@
+Breaks the check of fuzz/fuzz_pure.c:171 ("unknown error" -> "error").
+Caught by the seed input "strerror" of fuzz_pure.
+
+diff --git a/src/surface.c b/src/surface.c
+index 81d7b56..321e399 100644
+--- a/src/surface.c
++++ b/src/surface.c
+@@ -577,5 +577,5 @@ const char *surface_strerror(int code)
+ 	case SURFACE_E_FULL:  return "table full";
+ 	case SURFACE_E_NOMEM: return "out of memory";
+ 	}
+-	return "unknown error";
++	return "error";
+ }
