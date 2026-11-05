@@ -8,7 +8,7 @@
 %bcond_without diginet
 %bcond_without mackie
 Name:           libsurface
-Version:        0.2.2
+Version:        0.2.3
 # The soname's major. rpm derives this package's provides and every consumer's requires from it.
 # It copies SURFACE_ABI of include/surface/surface.h, and tests/conformance-packaging.sh (in make
 # test) refuses a copy that disagrees.
@@ -187,6 +187,12 @@ make CFLAGS="%{optflags}" %{mkflags} test
 %endif
 
 %changelog
+* Thu Nov 05 2026 Pau Aliagas <linuxnow@gmail.com> - 0.2.3-1
+- surface_colour no longer copies from a NULL list of length 0.
+- The fuzz harnesses follow the OSS Verify build contract; the key a backend
+  receives for an LED is a checked property of the board harness.
+- No change to the library ABI.
+
 * Wed Nov 04 2026 Pau Aliagas <linuxnow@gmail.com> - 0.2.2-1
 - The DigiNet module's tests build against libdiginet-emu (libdiginet 0.1.8) and
   keep no copy of the desk emulator; a check keeps it so and reads at least one file (#18).
