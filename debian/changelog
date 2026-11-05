@@ -1,8 +1,14 @@
 libsurface (0.2.2) unstable; urgency=medium
 
   * The DigiNet module's tests build against libdiginet-emu, the desk
-    emulator libdiginet 0.1.7 installs, and this tree's copies are gone; a
-    check keeps them from coming back (#18).
+    emulator and child harness libdiginet 0.1.8 installs, and this tree's
+    copies are gone; a check keeps them from coming back, and reads at least
+    one file (#18).
+  * Every dependency on libdiginet and libmackie states a floor and a ceiling
+    (libdiginet >= 0.1.4, build >= 0.1.8, and << 0.2; libmackie >= 0.1.0 and
+    << 0.2).
+  * The commit-message and private-reference checks are the shared ones; the
+    local copy is gone.
   * The packages install their licence and a short README and no other
     markdown; their descriptions point to openmixer.org.
   * No change to the library or its ABI.

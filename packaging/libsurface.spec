@@ -31,13 +31,13 @@ BuildRequires:  git-core
 BuildRequires:  pkgconf-pkg-config
 %if %{with diginet}
 # the desk mux (diginet/transport/diginet_mux.h) is in libdiginet from 0.1.4
-BuildRequires:  pkgconfig(libdiginet-transport) >= 0.1.4
+BuildRequires:  (pkgconfig(libdiginet-transport) >= 0.1.4 with pkgconfig(libdiginet-transport) < 0.2)
 # the module's tests run on libdiginet's desk emulator and child harness (emu_child.h), installed
 # as test support from 0.1.8
-BuildRequires:  pkgconfig(libdiginet-emu) >= 0.1.8
+BuildRequires:  (pkgconfig(libdiginet-emu) >= 0.1.8 with pkgconfig(libdiginet-emu) < 0.2)
 %endif
 %if %{with mackie}
-BuildRequires:  pkgconfig(libmackie) >= 0.1.0
+BuildRequires:  (pkgconfig(libmackie) >= 0.1.0 with pkgconfig(libmackie) < 0.2)
 %endif
 
 %description
@@ -62,7 +62,7 @@ Its documentation is on openmixer.org.
 Summary:        A Digidesign Control|24 under libsurface, over DigiNet
 Requires:       %{name}%{?_isa} = %{version}-%{release}
 # the soname alone does not say it: the desk mux is in libdiginet from 0.1.4
-Requires:       libdiginet%{?_isa} >= 0.1.4
+Requires:       (libdiginet%{?_isa} >= 0.1.4 with libdiginet%{?_isa} < 0.2)
 
 %description -n libsurface-diginet
 libsurface-diginet is libsurface's DigiNet module: a Digidesign Control|24 driven by libsurface's
@@ -86,7 +86,7 @@ Its documentation is on openmixer.org.
 Summary:        Drive a Control|24 through libsurface, with no privilege of its own
 Requires:       libsurface-diginet%{?_isa} = %{version}-%{release}
 # the packet socket comes from diginet-packet-helper
-Requires:       diginet-tools
+Requires:       (diginet-tools >= 0.1.4 with diginet-tools < 0.2)
 
 %description -n surface-c24
 surface-c24 takes its packet socket from diginet-packet-helper, attaches the first Control|24
@@ -113,7 +113,7 @@ Its documentation is on openmixer.org.
 Summary:        Development files for libsurface-mackie
 Requires:       libsurface-mackie%{?_isa} = %{version}-%{release}
 Requires:       %{name}-devel%{?_isa} = %{version}-%{release}
-Requires:       pkgconfig(libmackie) >= 0.1.0
+Requires:       (pkgconfig(libmackie) >= 0.1.0 with pkgconfig(libmackie) < 0.2)
 
 %description -n libsurface-mackie-devel
 The header and the pkg-config file (libsurface-mackie) for building a host that drives an MCU
@@ -188,8 +188,11 @@ make CFLAGS="%{optflags}" %{mkflags} test
 
 %changelog
 * Wed Nov 04 2026 Pau Aliagas <linuxnow@gmail.com> - 0.2.2-1
-- The DigiNet module's tests build against libdiginet-emu (libdiginet 0.1.7) and
-  keep no copy of the desk emulator (#18).
+- The DigiNet module's tests build against libdiginet-emu (libdiginet 0.1.8) and
+  keep no copy of the desk emulator; a check keeps it so and reads at least one file (#18).
+- Every dependency on libdiginet and libmackie states a floor and a ceiling
+  (libdiginet >= 0.1.4, build >= 0.1.8, and < 0.2; libmackie >= 0.1.0 and < 0.2).
+- The commit-message and private-reference checks are the shared ones; the local copy is gone.
 - The packages install their licence and a short README and no other markdown.
 - No change to the library or its ABI.
 * Sat Oct 31 2026 Pau Aliagas <linuxnow@gmail.com> - 0.2.1-1
