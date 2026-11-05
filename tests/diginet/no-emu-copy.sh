@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 #
-# libdiginet's desk emulator, its pump and its private-network helper are libdiginet's
-# (libdiginet-emu): no C file of this tree defines any of them again.
+# libdiginet's desk emulator, its pump, its private-network helper and its child harness are
+# libdiginet's (libdiginet-emu): no C file of this tree defines any of them again.
 #
 #   tests/diginet/no-emu-copy.sh [tree]
 #
@@ -18,9 +18,9 @@ else
 	files=$(find . -type f ! -path './.git/*' | sed 's|^\./||')
 fi
 [ -n "$files" ] || { echo "FAIL no file listed in $top, so nothing was read"; exit 1; }
-# what only libdiginet-emu defines: the emulator's state and its first function, the pump, and
-# the include guards of its three headers
-pat='^[[:space:]]*(void[[:space:]]+emu_init[[:space:]]*\(|struct[[:space:]]+desk_emu[[:space:]]*\{|static[[:space:]]+inline[[:space:]]+void[[:space:]]+emu_pump_fd[[:space:]]*\(|#[[:space:]]*define[[:space:]]+DIGINET_(DESK_EMU|EMU_PUMP|TEST_NETNS)_H)'
+# what only libdiginet-emu defines: the emulator's state and its first function, the pump, the
+# harness's spawn, and the include guards of its four headers
+pat='^[[:space:]]*(void[[:space:]]+emu_init[[:space:]]*\(|struct[[:space:]]+desk_emu[[:space:]]*\{|static[[:space:]]+inline[[:space:]]+void[[:space:]]+emu_pump_fd[[:space:]]*\(|static[[:space:]]+inline[[:space:]]+int[[:space:]]+emu_child_spawn[[:space:]]*\(|#[[:space:]]*define[[:space:]]+DIGINET_(DESK_EMU|EMU_PUMP|TEST_NETNS|EMU_CHILD)_H)'
 bad=0
 for f in $files; do
 	case $f in *.c|*.h) ;; *) continue ;; esac

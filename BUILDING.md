@@ -44,7 +44,14 @@ or refusing), and a virtual clock that runs the surface's timers in order:
 The script checks: `constants-check.sh` (each timing constant declared once, in the header),
 `conformance-packaging.sh` (the version and soname agree in every packaging copy),
 `test_install.sh` (a consumer builds against an installed tree through pkg-config alone),
-`test_workflows.sh` (the workflows parse), and `public-sources-check.sh` with its own test.
+and `test_workflows.sh` (the workflows parse).
+
+What the repository publishes is checked by FreeMixer/.github's shared checks, which CI runs
+through its `public-sources-check` workflow: a pull request's commit messages carry no
+attribution line, and no tracked file points into a private repository. `make public-sources`
+runs the second from a checkout of FreeMixer/.github (`FREEMIXER_DOTGITHUB`, else
+`../freemixer-dotgithub`). The commit-msg hook in `.githooks/` runs the first; enable it once
+per clone with `git config core.hooksPath .githooks`.
 
 ## The DigiNet module
 
@@ -78,10 +85,12 @@ The module's tests, in `tests/diginet/`, run after the core's:
   restart and at the first announce after a host restart; a desk that goes and comes back;
 - `test_c24_tool`: `surface-c24` itself, unprivileged, its socket from `diginet-packet-helper`,
   against the emulator on a veth pair in a user and network namespace of the test's own. SKIP
-  with no helper or no such namespace;
+  with no helper or no such namespace, which is every container job; CI's `DigiNet module on the
+  runner` job has both, and a skip there fails it;
 - `test_install.sh`: the module installed, a consumer built through pkg-config alone;
-- the tests run on libdiginet's desk emulator, `libdiginet-emu` (libdiginet 0.1.7 and later
-  install it as test support), from `DIGINET_SRC` or through pkg-config; without it they fail;
+- the tests run on libdiginet's desk emulator and child harness, `libdiginet-emu` (libdiginet
+  0.1.8 and later install them as test support), from `DIGINET_SRC` or through pkg-config; without
+  `diginet/testsupport/emu_child.h` they fail;
 - `no-emu-copy.sh` (in every `make test`): no C file of this tree defines the emulator again,
   and `no-emu-copy-sabotage.sh` puts a copy of libdiginet's `desk_emu.h` back in a scratch copy
   of the tree and requires that check to go red on it.

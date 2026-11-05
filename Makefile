@@ -115,9 +115,10 @@ endif
 
 all: diginet
 
-# The module's tests run on libdiginet's desk emulator, libdiginet-emu (libdiginet 0.1.7 and
-# later install it as test support): from DIGINET_SRC, or through pkg-config.
-HAVE_DIGINET_EMU := $(shell printf '\043include <diginet/testsupport/desk_emu.h>\n' | \
+# The module's tests run on libdiginet's desk emulator and its child harness, libdiginet-emu
+# (emu_child.h, which pulls in the emulator: libdiginet 0.1.8 and later install them as test
+# support), from DIGINET_SRC or through pkg-config.
+HAVE_DIGINET_EMU := $(shell printf '\043include <diginet/testsupport/emu_child.h>\n' | \
 	$(CC) $(DIGINET_CFLAGS) -E -x c - >/dev/null 2>&1 && echo yes)
 DTESTS := tests/diginet/test_diginet tests/diginet/test_c24_tool
 
@@ -137,10 +138,10 @@ test-diginet: diginet-emu-found $(DTESTS) $(C24)
 	$(RUN_TEST) tests/diginet/test_install.sh "$(DIGINET_SRC)"
 	$(RUN_TEST) tests/diginet/no-emu-copy-sabotage.sh "$(EMU_INC)"
 
-# the module's tests need the emulator: a libdiginet without it is a failure, not a skip
+# the module's tests need the harness: a libdiginet without it is a failure, not a skip
 .PHONY: diginet-emu-found
 diginet-emu-found:
-	@[ "$(HAVE_DIGINET_EMU)" = yes ] || { echo "FAIL: libdiginet's desk emulator (diginet/testsupport/desk_emu.h, libdiginet-emu) was not found: install libdiginet 0.1.7 or later, or set DIGINET_SRC to a built libdiginet tree"; exit 1; }
+	@[ "$(HAVE_DIGINET_EMU)" = yes ] || { echo "FAIL: libdiginet's child harness (diginet/testsupport/emu_child.h, libdiginet-emu) was not found: install libdiginet 0.1.8 or later, or set DIGINET_SRC to a built libdiginet tree"; exit 1; }
 else
 test-diginet:
 	@echo "SKIP: the DigiNet module's tests: $(DIGINET_NONE)"
@@ -270,10 +271,15 @@ test: $(TESTS) $(KEYS_TEST)
 	$(RUN_TEST) tests/test_install.sh
 	$(RUN_TEST) tests/conformance-packaging.sh
 	$(RUN_TEST) tests/test_workflows.sh
-	$(RUN_TEST) tests/public-sources-check.sh
-	$(RUN_TEST) tests/test_public_sources.sh
 	@$(MAKE) --no-print-directory test-diginet
 	@$(MAKE) --no-print-directory test-mackie
+
+# No tracked file points into a private repository: FreeMixer/.github's private-refs check, from a
+# checkout of it (FREEMIXER_DOTGITHUB, else ../freemixer-dotgithub). CI runs it, with the commit
+# message check, through the public-sources-check workflow; `make test` does not need it.
+FREEMIXER_DOTGITHUB ?= ../freemixer-dotgithub
+public-sources:
+	$(FREEMIXER_DOTGITHUB)/.github/actions/private-refs-check/check.sh .
 
 # The pkg-config file is written at install time, from the install's own PREFIX and LIBDIR: a
 # file kept from an earlier build would name that build's directories.
@@ -333,4 +339,4 @@ clean:
 	rm -f $(MOBJS) $(MOBJS:.o=.d) libsurface-mackie.a libsurface-mackie.so* tests/mackie/test_mackie
 	rm -rf build
 
-.PHONY: all diginet mackie test test-diginet test-mackie shared shared-diginet shared-mackie install install-common install-shared clean
+.PHONY: all diginet mackie test public-sources test-diginet test-mackie shared shared-diginet shared-mackie install install-common install-shared clean
